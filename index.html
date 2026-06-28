@@ -1,0 +1,1880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Show Must Go On - A Text Adventure</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0d0a0f;--surface:#161018;--border:#2e2330;--text:#e0d6d8;--text-dim:#8a7a82;
+  --gold:#c89b3c;--gold-light:#ecc463;--blue:#7a93b8;--green:#86c08a;--rose:#c87a8f;--focus:#ecc463;
+  --font:'Courier New',Courier,monospace;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:16px;
+  line-height:1.75;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:1rem;}
+.skip-link{position:absolute;top:-9999px;left:0;background:var(--gold);color:#000;
+  padding:.5rem 1rem;z-index:100;font-weight:bold;}
+.skip-link:focus{top:0;}
+#game-wrapper{width:100%;max-width:780px;display:flex;flex-direction:column;}
+header{border-bottom:1px solid var(--border);padding:1rem 0 .75rem;}
+h1{font-size:1.4rem;color:var(--gold-light);letter-spacing:.15em;text-transform:uppercase;}
+#subtitle{font-size:.85rem;color:var(--text-dim);margin-top:.25rem;}
+#status-bar{background:var(--surface);border:1px solid var(--border);border-top:none;
+  padding:.5rem 1rem;font-size:.8rem;color:var(--text-dim);display:flex;gap:1.5rem;flex-wrap:wrap;}
+#status-bar strong{color:var(--gold);}
+#output-region{background:var(--surface);border:1px solid var(--border);border-top:none;
+  padding:1rem 1.25rem;min-height:420px;max-height:58vh;overflow-y:auto;scroll-behavior:smooth;}
+.chunk{margin-bottom:1.25rem;}
+.chunk:last-child{margin-bottom:0;}
+.chunk h2{font-size:1.05rem;color:var(--gold-light);font-weight:bold;margin-bottom:.5rem;}
+.chunk p{margin-bottom:.45rem;color:var(--text);}
+.chunk p:last-child{margin-bottom:0;}
+.chunk p.t-items{color:var(--green);}
+.chunk p.t-exits{color:var(--blue);}
+.chunk p.t-system{color:var(--text-dim);font-style:italic;}
+.chunk p.t-error{color:#bf6a6a;}
+.chunk p.t-success{color:var(--gold-light);font-weight:bold;}
+.chunk p.t-score{color:var(--gold);}
+.chunk p.t-npc{color:var(--rose);font-style:italic;}
+.chunk hr{border:none;border-top:1px solid var(--border);margin:.5rem 0;}
+.cmd-sep{border-top:1px solid var(--border);margin-bottom:0.5rem;padding-top:0.6rem;}
+.you-said-label{font-size:0.75rem;color:var(--text-dim);font-weight:normal;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.15rem;}
+.you-said-text{color:var(--gold);font-size:0.95rem;margin-bottom:0.4rem;}
+.i-said-label{font-size:0.75rem;color:var(--text-dim);font-weight:normal;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.3rem;}
+#sr-live{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden;}
+#input-area{background:var(--surface);border:1px solid var(--border);border-top:1px solid var(--border);
+  padding:.75rem 1rem;display:flex;align-items:center;gap:.5rem;}
+#input-area:focus-within{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold);}
+#prompt-sym{color:var(--gold);flex-shrink:0;}
+#cmd-input{flex:1;background:transparent;border:none;outline:none;
+  color:var(--text);font-family:var(--font);font-size:1rem;caret-color:var(--gold);}
+#cmd-submit{background:transparent;border:1px solid var(--border);color:var(--text-dim);
+  font-family:var(--font);font-size:.85rem;padding:.3rem .75rem;cursor:pointer;border-radius:2px;}
+#cmd-submit:hover{color:var(--text);border-color:var(--gold);}
+#cmd-submit:focus{outline:2px solid var(--focus);outline-offset:2px;}
+#quick-bar{background:var(--bg);border:1px solid var(--border);border-top:none;
+  padding:.5rem 1rem;display:flex;flex-wrap:wrap;gap:.4rem;align-items:center;}
+#quick-label{font-size:.75rem;color:var(--text-dim);flex-shrink:0;margin-right:.25rem;}
+.qbtn{background:transparent;border:1px solid var(--border);color:var(--text-dim);
+  font-family:var(--font);font-size:.75rem;padding:.2rem .6rem;cursor:pointer;border-radius:2px;}
+.qbtn:hover{color:var(--text);border-color:var(--gold);}
+.qbtn:focus{outline:2px solid var(--focus);outline-offset:2px;color:var(--text);}
+#kb-hints{font-size:.75rem;color:var(--text-dim);padding:.5rem 1rem;
+  border:1px solid var(--border);border-top:none;background:var(--bg);}
+kbd{font-family:var(--font);background:#1e1622;border:1px solid var(--border);
+  border-radius:2px;padding:0 4px;font-size:.75rem;}
+</style>
+</head>
+<body>
+<a class="skip-link" href="#cmd-input">Skip to command input</a>
+<div id="game-wrapper" role="application" aria-label="The Show Must Go On text adventure">
+  <header role="banner">
+    <h1>The Show Must Go On</h1>
+    <p id="subtitle">A text adventure. Type HELP for commands, or use the quick buttons below. Progress saves automatically.</p>
+  </header>
+  <div id="status-bar" role="status" aria-label="Game status" aria-live="off">
+    <span>Location: <strong id="s-loc">-</strong></span>
+    <span>Curtain in: <strong id="s-clock">15 min</strong></span>
+    <span>Turns: <strong id="s-turns">0</strong></span>
+    <span>Score: <strong id="s-score">0 / 168</strong></span>
+  </div>
+  <main id="output-region" tabindex="-1" aria-label="Game transcript"></main>
+  <div id="sr-live" aria-live="polite" aria-atomic="true" aria-label="Game output"> </div>
+  <div id="input-area">
+    <span id="prompt-sym" aria-hidden="true">&gt;</span>
+    <input id="cmd-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label=" "/>
+    <button id="cmd-submit" aria-label="Submit command">Enter</button>
+  </div>
+  <div id="quick-bar" role="toolbar" aria-label="Quick commands">
+    <span id="quick-label">Quick:</span>
+    <button class="qbtn" onclick="quickCmd('look')" aria-label="Look around">Look</button>
+    <button class="qbtn" onclick="quickCmd('inventory')" aria-label="Show inventory">Inventory</button>
+    <button class="qbtn" onclick="quickCmd('exits')" aria-label="List exits">Exits</button>
+    <button class="qbtn" onclick="quickCmd('repeat')" aria-label="Repeat last output">Repeat</button>
+    <button class="qbtn" onclick="quickCmd('help')" aria-label="Show help">Help</button>
+    <button class="qbtn" onclick="quickCmd('hint')" aria-label="Get a hint">Hint</button>
+    <button class="qbtn" onclick="quickCmd('restart')" aria-label="Restart game">Restart</button>
+  </div>
+  <p id="kb-hints" aria-hidden="true">
+    <kbd>Enter</kbd> to submit &nbsp;·&nbsp;
+    <kbd>↑</kbd><kbd>↓</kbd> recall commands &nbsp;·&nbsp;
+    <kbd>Tab</kbd> between controls
+  </p>
+</div>
+<script>
+"use strict";
+function rnd(a){return a[Math.floor(Math.random()*a.length)];}
+function inc(s,t){return s.toLowerCase().includes(t.toLowerCase());}
+function wrd(s,...ws){return ws.some(w=>new RegExp('\\b'+w+'\\b','i').test(s));}
+function norm(s){return s.toLowerCase().replace(/['']/g,"'").replace(/\s+/g,' ').trim();}
+
+const ITEMS={
+  /* ── STARTING INVENTORY ── */
+  ruined_script:{name:'tea-stained script',art:'a',inv:true,
+    desc:()=>`Your understudy's copy of tonight's play - "A Parlour in Petersfield", a drawing-room comedy of no great distinction but plenty of doors. The first two acts you know backwards. Act Three, however, is a catastrophe: somebody (you, three weeks ago, with a celebratory cup of tea) has welded the final pages into a single papery brick. You can make out the words "ENTER, dramatically" and then nothing but a brown continent of dried tea.\n\nYou need the real lines for Act Three${G.flags.has_book?', but happily you now have the Director\'s annotated Book, which has them all.':'. The only complete copy in the building is the Director\'s own annotated Book.'}`},
+  greasepaint:{name:'stick of greasepaint',art:'a',inv:true,
+    desc:`A well-loved stick of theatrical greasepaint, number five, worn down to a nub. It smells of every performance you've ever not quite been in. Warpaint for the perpetually overlooked.`,
+    use_resp:`You could put your make-up on, but you'd do it properly at the mirror. Try MAKE UP or PUT ON MAKEUP at a mirror.`},
+  rabbits_foot:{name:"lucky rabbit's foot",art:'a',inv:true,
+    desc:`A moth-eaten rabbit's foot on a keyring, dyed a colour not found in nature or rabbits. It has brought you no discernible luck in eleven years of understudying, but you keep it, because the alternative is admitting that.\n\nTonight, you feel, it might finally clock on.`,
+    use_resp:`You give the rabbit's foot a hopeful rub. Somewhere, statistically, your luck is presumably improving.`},
+  safety_pin:{name:'safety pin',art:'a',inv:true,
+    desc:`A large, sturdy safety pin, the universal currency of backstage. It has held up hems, scenery, and on one memorable occasion an entire actor. It feels like the sort of thing that earns its keep.`,
+    use_resp:`A safety pin is endlessly useful, but you need the right thing to use it on.`},
+  /* ── PLOT-CHAIN ITEMS (acquired through the chain) ── */
+  prop_key:{name:'prop-store key',art:'the',room:null,
+    desc:`A heavy iron key with a paper tag reading "PROP STORE - DO NOT LOSE - THIS MEANS YOU". Albert the stage-door keeper surrendered it with the air of a man handing over his firstborn.`},
+  mascot:{name:'Mr Pemberton',art:null,room:null,
+    desc:`Mr Pemberton: the Marwood Empire's beloved mascot, a stuffed ginger theatre cat of immense age and questionable taxidermy. One glass eye is green, the other is a shirt button. He has "watched" every opening night since 1931 from his cushion in the wings, and the Director genuinely believes the show cannot succeed without him present. He is balding, lopsided, and frankly magnificent.`},
+  spare_fuse:{name:'spare fuse',art:'a',room:null,
+    desc:`A chunky old ceramic fuse, the cartridge kind, scavenged from the prop store's "ELECTRICAL - PROBABLY" drawer. Exactly the sort of thing a dead lighting board might be missing.`},
+  threader:{name:'silver needle-threader',art:'a',room:null,
+    desc:`Mrs Tassel's prized needle-threader: a slim silver thing shaped like a tiny lady's head with a wire loop of hair. She has been lost without it - literally; she can't thread a needle and won't admit she needs glasses. Returning this will make you, briefly, her favourite person in the building.`},
+  milk:{name:'bottle of milk',art:'a',room:null,
+    desc:`A small glass bottle of milk, cold from the box-office fridge. Brenda parted with it on the strict understanding that it is "for the keeper's cocoa, not for any funny business." You're not sure what funny business one could get up to with a third of a pint of milk, but you respect her vigilance.`},
+  cocoa:{name:'mug of cocoa',art:'a',room:null,
+    desc:`A steaming mug of cocoa, made in the green room with reconditioned urn-water and Brenda's milk. It says WORLD'S OKAYEST STAGEHAND on the side. The single most powerful bargaining chip in the building.`},
+  the_book:{name:"the Director's Book",art:null,room:null,
+    desc:`The Director's prompt Book: the master copy of "A Parlour in Petersfield", fat with decades of pencilled blocking, cuts, and increasingly desperate marginalia ("WHY", "slower", "is this funny? check"). Crucially, Act Three is complete and legible. With this in your hands, you finally know the whole part.`},
+  brooch:{name:'paste-diamond brooch',art:'a',room:null,
+    desc:`Cordelia Vane's brooch: a great glittering paste-diamond starburst, the kind of thing that looks like the crown jewels from row Z and like a Christmas cracker from row A. She pressed it on you "for luck, darling - it's seen more first nights than God." It is, you realise, her version of a rabbit's foot.`},
+  /* ── FIXED SCENERY: DRESSING ROOM ── */
+  dressing_mirror:{name:'mirror',art:'the',room:'dressing_room',fixed:true,
+    desc:()=>`A large mirror framed with bulbs, three of which have died and one of which flickers like a nervous understudy. The glass has a crack across one corner - seven years' bad luck, allegedly, though you've had worse from a good review. ${G.flags.made_up?'Your face, made up, looks back at you: ready, for once.':'Your own anxious, un-made-up face looks back. You could put your make-up on here.'}`,
+    take_resp:`The mirror is screwed to the wall and besides, you have quite enough trouble with your own reflection without carrying it about.`},
+  flowers:{name:'wilting flowers',art:'some',room:'dressing_room',fixed:true,
+    desc:`A small bunch of carnations, wilting bravely in a jam jar. The card reads: "To whoever ends up going on. Good luck. You'll need it. - The Company." It is not, when you think about it, the warmest sentiment ever committed to card, but it is the only one you've had, so you treasure it.`,
+    take_resp:`You leave the flowers where they are. They're the only ones you've ever been sent and you're not about to manhandle them.`},
+  telegram:{name:'telegram',art:'a',room:'dressing_room',fixed:true,
+    desc:`A telegram, yellowed and ancient, pinned to the wall by some long-gone occupant and left as a sort of talisman. It reads: "BREAK A LEG STOP NOT LITERALLY STOP REMEMBER WHAT HAPPENED TO REGINALD STOP". Nobody currently in the building knows who Reginald was, but everyone observes a respectful caution on the stairs.`,
+    take_resp:`The telegram has been pinned here longer than you've been alive. It would feel like grave-robbing.`},
+  /* ── FIXED SCENERY: CORRIDOR ── */
+  call_board:{name:'call-board',art:'the',room:'corridor',fixed:true,
+    desc:()=>`The call-board, where the company's fate is pinned daily in curling notices. Today's running order is here, along with a hand-written addition in the Stage Manager's furious capitals: "MISS VANE NOT SIGNED IN. UNDERSTUDY STANDBY. GOD HELP US ALL." Beneath that, smaller: "Whoever keeps whistling in the corridor will be DEALT WITH."\n\nThere's also the nightly notice every theatre keeps: "BEGINNERS' CALL 7:15. CURTAIN 7:30."`,
+    take_resp:`The call-board stays on the wall. To remove it would be to tempt a fate even this building doesn't deserve.`},
+  fire_bucket:{name:'fire bucket',art:'a',room:'corridor',fixed:true,
+    desc:`A red-painted bucket of sand hanging on a bracket, in case of fire, dropped cigarettes, or - the building's history suggests - the occasional pyrotechnic Macbeth. The sand has a single cigarette end in it from approximately the Coronation. You could rummage in it, you suppose, if you were the rummaging sort.`},
+  playbills:{name:'old playbills',art:'some',room:'corridor',fixed:true,
+    desc:`A row of framed playbills down the corridor wall, charting the Marwood Empire's long slide from "PROVINCIAL TRIUMPH" to "PROVINCIAL". Pantomimes, melodramas, a 1958 "Hamlet" the local paper called "ambitious". One frame is conspicuously turned to face the wall; nobody will say why, but it's the Scottish one, and you know better than to turn it round.`,
+    take_resp:`The playbills are the building's memory. You leave them hanging.`},
+  /* ── FIXED SCENERY: PROMPT CORNER ── */
+  prompt_desk:{name:'prompt desk',art:'the',room:'prompt_corner',fixed:true,
+    desc:`The prompt desk in the corner of stage left: a little shelf with a hooded lamp, a panel of coloured cue-lights (RED for standby, GREEN for go), and the worn book-rest where the prompt copy lives during a show. From here Miss Quill can see the whole stage and most of the actors' mistakes before they make them.`,
+    take_resp:`The prompt desk is the nerve centre of the entire performance. It is not going in your pocket.`},
+  cue_lights:{name:'cue-lights',art:'the',room:'prompt_corner',fixed:true,
+    desc:()=>`Two little bulbs in a brass housing: RED for "stand by", GREEN for "go". Right now the red one is lit and has been for some minutes, which in theatre terms is roughly the emotional equivalent of a smoke alarm. ${G.flags.show_ready?'Any moment now, that green light is going to mean you.':'Until somebody can actually go on, green is a distant dream.'}`,
+    take_resp:`Tampering with the cue-lights is how wars start backstage. Hands off.`},
+  iron_curtain:{name:'safety curtain',art:'the',room:'prompt_corner',fixed:true,
+    desc:`The iron - the great fireproof safety curtain that separates stage from auditorium, painted with an advert for a ginger beer that stopped being made in 1962. By law it must be raised and lowered at every performance to prove it works. Through the gap at the bottom you can hear the audience: a low, expectant, slightly restless murmur. They have paid. They are waiting.`,
+    take_resp:`The safety curtain weighs roughly as much as a small whale and is the only thing standing between the audience and a building fire. It stays.`},
+  /* ── FIXED SCENERY: WINGS ── */
+  fly_ropes:{name:'fly ropes',art:'the',room:'wings',fixed:true,
+    desc:`A wall of hemp ropes running up into the darkness of the fly tower, each cleated off and labelled in fading chalk: "CLOTH 1", "BORDER", "CHANDELIER (HEAVY!!)". This is how scenery flies in and out. A sign reads "FLYING IS FOR QUALIFIED CREW ONLY", which has the slightly hopeful tone of a sign that has been comprehensively ignored for a century.`,
+    take_resp:`You give a rope a speculative tug. Something enormous shifts in the darkness above you. You let go immediately and decide that flying scenery is, in fact, for qualified crew only.`},
+  stage_weights:{name:'stage weights',art:'some',room:'wings',fixed:true,
+    desc:`A stack of cast-iron stage weights - flat slabs with a handle, used to stop scenery and over-confident actors from falling over. Heavy, honest, and faintly reassuring. One of them is doing nothing in particular, but the rest are clearly holding something important down and you decide not to investigate which.`,
+    take_resp:`A stage weight is, by design, extremely heavy and pointedly not for carrying about. That's the whole idea of it.`},
+  scenery_flats:{name:'scenery flats',art:'some',room:'wings',fixed:true,
+    desc:`Painted canvas flats stacked against the wall, waiting to become the parlour, the garden, and (optimistically) "ELSEWHERE". From the front they're a convincing stately home; from here they're timber, canvas, and a great deal of clever brown paint. The illusion, like most theatrical illusions, depends entirely on you not being allowed backstage.`,
+    take_resp:`The flats are twelve feet tall and belong on stage, not under your arm.`},
+  lost_umbrella:{name:'forgotten umbrella',art:'a',room:'wings',fixed:true,
+    desc:`A black umbrella, furled, leaning in the corner of the wings where someone left it after a wet matinee in - the dust suggests - living memory. It is not a clue. It is not part of any puzzle. It is simply an umbrella that has achieved a kind of immortality through being forgotten. You find this oddly moving.`,
+    take_resp:`You don't need an umbrella. It hasn't rained on this stage since the roof was fixed, which is to say it may well rain on this stage, but not tonight.`},
+  /* ── FIXED SCENERY: STAGE ── */
+  footlights:{name:'footlights',art:'the',room:'stage',fixed:true,
+    desc:()=>`A row of footlights along the lip of the stage, throwing their warm glow up at where an actor's face ought to be. ${G.flags.lights_fixed?'They blaze cheerfully now, the whole stage washed in honest gold.':'They\'re lit, but dimly - the main board is dead, so half the rig is out and the stage sits in a sad half-light. You can\'t perform in this.'}`,
+    take_resp:`The footlights are bolted into the lip of the stage and wired into the building. Also they're hot. Leave them.`},
+  the_set:{name:'the set',art:null,room:'stage',fixed:true,
+    desc:`The set for "A Parlour in Petersfield": a painted drawing-room with three doors (comedies always have at least three doors, for the slamming), a chaise, a fake fireplace, and a French window through which characters arrive at exactly the wrong moment. A side table holds a decanter of cold tea masquerading as brandy. It is, in the gentle theatre half-light, almost convincing.`,
+    take_resp:`You can't take the set. You're meant to act on it, ideally quite soon.`},
+  the_curtain:{name:'house curtain',art:'the',room:'stage',fixed:true,
+    desc:`The great red house curtain, hanging in heavy velvet swags, frayed at the hem where a hundred years of feet have brushed it. Behind it, the safety curtain; behind that, the audience. When it rises, it rises on you. The thought produces a sensation in your stomach like a lift with the cable cut.`,
+    take_resp:`The house curtain weighs a great deal and is, fairly literally, the thing the whole evening hangs on. It stays.`},
+  auditorium:{name:'auditorium',art:'the',room:'stage',fixed:true,
+    desc:()=>`Beyond the footlights, dimly, the auditorium: rank upon rank of red plush seats rising into the dark, most of them - tonight, miraculously - full. Eight hundred people who have left their homes on a damp evening to be told a story. A baby is grizzling in the circle. Somebody unwraps a sweet with the slow, doomed stealth of the truly committed. ${G.flags.show_ready?'They are ready. The only question left is whether you are.':'They don\'t yet know the night is hanging by a thread. You intend to keep it that way.'}`,
+    take_resp:`You cannot take the audience. Tempting though it is to simply gather them up and explain that tonight might be tricky.`},
+  /* ── FIXED SCENERY: GREEN ROOM ── */
+  urn:{name:'tea urn',art:'the',room:'green_room',fixed:true,
+    desc:()=>{
+      if(G.flags.cocoa_made)return `The great steel tea urn, vindicated and gently steaming, having produced one perfect mug of cocoa. It looks insufferably pleased with itself.`;
+      if(G.flags.urn_filled)return `The tea urn, now full of water and freshly switched on, ticking and gurgling its way up to a boil. All it needs now is the cocoa-making: water, the tin of cocoa on the shelf, and milk - which you don't yet have.`;
+      return `An enormous, ancient steel tea urn, the beating heart of any theatre's morale. It is currently empty, switched off, and sulking. There's a tap at the bottom and a hinged lid at the top. It wants water in it before it'll do anything at all. Get that going and you're most of the way to a hot drink.`;
+    },
+    take_resp:`The urn holds three gallons and weighs accordingly. It is not leaving this room and frankly neither is anyone who tries to make it.`},
+  green_sofa:{name:'sagging sofa',art:'the',room:'green_room',fixed:true,
+    desc:`A vast, sagging chintz sofa, the colour of stewed tea, into which generations of resting actors have sunk and from which several were rumoured never to return. It exhales a small puff of dust and old anecdotes when you look at it. Sitting on it before a show is considered, by the superstitious, a way of inviting the evening to also collapse.`,
+    take_resp:`The sofa weighs as much as the urn and has, if anything, stronger opinions about staying put.`},
+  biscuit_tin:{name:'biscuit tin',art:'a',room:'green_room',fixed:true,
+    desc:`A battered Quality Street tin that has not contained Quality Street, or indeed any street of any quality, since management instituted "economies". It now contains: a single broken bourbon, a button, and the crushing weight of company morale. Opening it is one of theatre's small, recurring tragedies.`,
+    take_resp:`The tin is empty of everything but disappointment, which is not worth carrying.`},
+  cocoa_tin:{name:'tin of cocoa',art:'a',room:'green_room',fixed:true,
+    desc:`A dented tin of cocoa powder on the green-room shelf, survivor of the economies because nobody likes cocoa quite enough to finish it. There's plenty left. With hot water and a drop of milk, this becomes the most valuable substance in the building.`,
+    take_resp:`No need to pocket the whole tin - it lives by the urn. The cocoa-making happens here, once you've got water heating and some milk.`},
+  /* ── FIXED SCENERY: WARDROBE ── */
+  costume_rails:{name:'costume rails',art:'the',room:'wardrobe',fixed:true,
+    desc:`Rails and rails of costumes receding into fragrant gloom: doublets, crinolines, a pantomime cow (rear half only, the front half being "in litigation"), and an entire regiment of identical butler's tailcoats. The smell is pure theatre - mothballs, face powder, sweat, and glamour, in roughly that order.`,
+    take_resp:`You can't cart off the rails, and the only costume you actually need is locked in Miss Vane's room.`},
+  mannequin:{name:'tailor\'s dummy',art:'a',room:'wardrobe',fixed:true,
+    desc:`A headless tailor's dummy on a wooden pole, wearing a half-pinned ballgown and an air of patient suffering. Mrs Tassel calls her "Deirdre" and talks to her more than to most of the company. Deirdre has heard every secret in this building and, being headless, has kept them all.`,
+    take_resp:`Deirdre stays. She has tenure.`},
+  sewing_box:{name:'sewing box',art:'a',room:'wardrobe',fixed:true,
+    desc:()=>G.flags.threader_returned
+      ?`Mrs Tassel's sewing box, open and busy again now her needle-threader is back in it: pins, threads, a pincushion shaped like a tomato, and a pair of scissors sharp enough to settle arguments. Order has been restored.`
+      :`Mrs Tassel's sewing box: pins, threads, a tomato pincushion, scissors. But there's a needle-threader-shaped gap in it, and a half-threaded needle abandoned in frustration. She can't get on without it - she squints at the eye of the needle and her eyes, she'll tell you, "aren't what they were."`,
+    take_resp:`The sewing box is Mrs Tassel's domain and she'd have your hand off. The threader that's missing from it, though - that's worth tracking down.`},
+  pressing_iron:{name:'pressing iron',art:'a',room:'wardrobe',fixed:true,
+    desc:`A heavy flat-iron heating on a little stand, for the eternal war against creases. Mrs Tassel can press a costume so sharp you could open letters with it. Best not to touch it; it's hot, and the last person who borrowed it without asking is, she says darkly, "no longer with the company."`,
+    take_resp:`The iron is hot and spoken for. You value your hand and your standing with Wardrobe.`},
+  /* ── FIXED SCENERY: PROP STORE ── */
+  prop_shelves:{name:'shelves of props',art:'the',room:'prop_store',fixed:true,
+    desc:`Floor-to-ceiling shelves of props, the glorious lumber-room of a hundred forgotten shows: rubber daggers, papier-mâché skulls, a tray of paste jewels, three crowns of varying royalty, a telephone with no wire, a leg of ham made of painted wood, and a drawer marked "ELECTRICAL - PROBABLY" that rattles with mystery. It's the kind of place where you came in for one thing and leave having found three.`,
+    take_resp:`You can't take "the shelves". Look for specific things on them - the mascot, and a rummage in that electrical drawer might pay off.`},
+  electrical_drawer:{name:'electrical drawer',art:'the',room:'prop_store',fixed:true,
+    desc:()=>G.flags.fuse_taken
+      ?`The drawer marked "ELECTRICAL - PROBABLY", now minus one spare fuse. Otherwise: a bag of dead bulbs, a doorbell, and a transformer humming to itself in a way that no transformer should when nothing is plugged into it.`
+      :`A drawer marked "ELECTRICAL - PROBABLY", rattling with the orphaned electrical guts of decades. Among the dead bulbs and orphan plugs, something useful catches your eye: a chunky spare fuse, the cartridge kind. The sort of thing a broken lighting board might be crying out for.`,
+    take_resp:`Take what's useful from inside it rather than the drawer itself - there's a spare fuse in there worth having.`},
+  stage_coffin:{name:'stage coffin',art:'a',room:'prop_store',fixed:true,
+    desc:`A property coffin propped upright in the corner, last used in the 1958 "Hamlet" and pressed into service every panto since as everything from a wardrobe to a submarine. The lid creaks open invitingly. You lift it. Inside: half a bag of fake snow and a note reading "IF YOU'RE READING THIS, IT'S NOT YOUR TURN YET." Theatre humour. Nobody knows who wrote it. Everyone leaves it.`,
+    take_resp:`A coffin is heavy, unlucky to move without good reason, and you have quite enough on tonight without explaining to anyone why you're carrying one.`},
+  apple_barrel:{name:'barrel of fake apples',art:'a',room:'prop_store',fixed:true,
+    desc:`A barrel of property apples, wax and wooden, polished to a shine that real fruit never achieves. They turn up in every other production - orchards, market scenes, the occasional ill-advised modern "Eden". One of them has a bite mark in it from an actor who, mid-show, forgot they weren't real. The bite mark is now itself a treasured prop.`,
+    take_resp:`A wooden apple is a sad thing to carry and no use to anyone. You leave the barrel to its shiny, inedible abundance.`},
+  /* ── FIXED SCENERY: STAGE DOOR ── */
+  key_board:{name:'key board',art:'the',room:'stage_door',fixed:true,
+    desc:()=>`A board of hooks behind Albert's counter, each hung with a labelled key: GREEN ROOM, WARDROBE, FLIES, BOX OFFICE, and - on the central hook, gleaming with importance - PROP STORE. ${G.flags.has_prop_key?'The prop-store hook is empty now; the key is in your pocket, where Albert can keep a sorrowful eye on it.':'Albert guards this board the way a dragon guards gold, and with much the same warmth toward visitors.'}`,
+    take_resp:`Reaching over Albert's counter to help yourself to a key would be, in his view, a hanging offence. The keys go through him or not at all.`},
+  signing_book:{name:'signing-in book',art:'the',room:'stage_door',fixed:true,
+    desc:()=>`The signing-in book, in which every soul entering the building must record their arrival, so that in the event of fire the brigade knows exactly who to look sad about. Tonight's page tells the story: the whole company signed in by 6:45 - except, in the line marked C. VANE, a damning blank. ${G.flags.knows_vane_hiding?'Though you happen to know she did come in. She just never came past Albert.':'Wherever Miss Vane is, officially, she isn\'t here at all.'}`,
+    take_resp:`The signing-in book is sacred and, in a fire, legally significant. It stays on Albert's counter.`},
+  keepers_flask:{name:"Albert's flask",art:'a',room:'stage_door',fixed:true,
+    desc:`A dented tartan thermos flask on Albert's counter, the companion of his every shift. Tonight, tragically, it is empty, and the green-room urn that would refill it is on strike. A keeper without his hot drink is a keeper with nothing to live for and nothing to lose, which makes Albert, currently, a dangerous man to need a favour from.`,
+    take_resp:`You'd no sooner take Albert's flask than poke a sleeping bear. Whatever's wrong, it's not solved by stealing the man's thermos.`},
+  /* ── FIXED SCENERY: BOX OFFICE ── */
+  seating_plan:{name:'seating plan',art:'the',room:'box_office',fixed:true,
+    desc:()=>G.flags.brenda_helped
+      ?`The big seating plan, now perfectly legible to Brenda again, the VIP party safely inked into the front row of the circle. Crisis averted; milk released.`
+      :`A large gridded seating plan of the auditorium, every seat a little box to be ticked. Brenda is hunched over it in despair: a VIP party is due and she cannot, she says, read the tiny seat numbers to place them - "It's the print, it's got smaller, they print everything smaller now." She is holding the plan at arm's length and then very close, and getting nowhere.`,
+    take_resp:`The seating plan is Brenda's whole world tonight and she would not thank you for taking it. Helping her read it, now - that might be another matter.`},
+  mini_fridge:{name:'mini-fridge',art:'a',room:'box_office',fixed:true,
+    desc:()=>G.flags.has_milk
+      ?`The box-office mini-fridge, humming. The milk's gone with you; what remains is a sad lunchbox and a yoghurt that has, Brenda says, "gone past being a yoghurt and into being a lifestyle."`
+      :`A small fridge under the box-office counter, humming bravely. Inside: a bottle of milk (the building's only milk, Brenda guards it jealously), a packet of sandwiches labelled BRENDA - NOT YOU, and a yoghurt of indeterminate age. The milk is exactly what the keeper's cocoa needs - but Brenda won't part with it for nothing.`},
+  cash_drawer:{name:'cash drawer',art:'the',room:'box_office',fixed:true,
+    desc:`The box-office cash drawer, or "the float", which Brenda counts twice before and twice after every show with the devotion of a monk and the suspicion of a customs officer. It contains tonight's takings and a button somebody once tried to pass off as a fifty-pence piece. Do not, the very air suggests, even think about it.`,
+    take_resp:`You wouldn't dream of it, and Brenda's eyes haven't left you since you looked at it. Move along.`},
+  /* ── FIXED SCENERY: DIVA'S ROOM ── */
+  star_chaise:{name:'chaise longue',art:'a',room:'diva_room',fixed:true,
+    desc:`A red velvet chaise longue, button-backed and faintly threadbare, on which Cordelia Vane has reclined in tragic glory between scenes for fifteen years. There's a still-warm dent in the cushions in the precise shape of a woman who, whatever the signing-in book says, is very much in the building.`,
+    take_resp:`The chaise stays. It is practically Cordelia's co-star.`},
+  vane_photos:{name:'wall of photographs',art:'a',room:'diva_room',fixed:true,
+    desc:`Every inch of wall is Cordelia: Cordelia as Lady Macbeth, as Hedda, as the back end of nothing whatsoever because Cordelia has never played the back end of anything. Young Cordelia, dazzling. Recent Cordelia, still dazzling but with a wariness in the eyes the early photos don't have. Taken together they tell the story of a career, and - if you look closely - of someone increasingly frightened of the next one not being as good.`,
+    take_resp:`You leave her photographs alone. There's something private about them, for all that they cover every wall.`},
+  locked_costume:{name:'star costume',art:'the',room:'diva_room',fixed:true,
+    desc:()=>G.flags.has_costume
+      ?`The empty costume bag swings on the rail; the gown itself is on you now, taken in with three deft safety-pinned tucks by Mrs Tassel. You are, at last, dressed for the part.`
+      :`The lead's costume for Act One, sealed in a garment bag on a locked rail: a midnight-blue evening gown that probably cost more than your annual wage as an understudy. This is what you'd have to wear to go on. The rail's little lock is the gentle, ornamental kind - the sort a sufficiently clever person with a sufficiently sturdy pin might have a view about - but you'd want Wardrobe's blessing before laying a finger on Cordelia's gown.`},
+  half_note:{name:'half-written note',art:'a',room:'diva_room',fixed:true,
+    desc:`A sheet of the theatre's headed paper on the dressing table, weighted with a powder compact. In Cordelia's grand looping hand it begins: "To the Company - By the time you read this I shall have - " and then stops, the pen abandoned mid-flourish. It is not, you realise with a small cold shock, a suicide note. It's a resignation note. She means to walk out. She means to never go on again. And she couldn't even finish telling you why.`,
+    take_resp:`You don't take the note. Whatever it is, it's hers to finish or not.`},
+  /* ── FIXED SCENERY: LIGHTING BOX ── */
+  lighting_board:{name:'lighting board',art:'the',room:'lighting_box',fixed:true,
+    desc:()=>{
+      if(G.flags.lights_fixed)return `The lighting board, alive again, its rows of dimmer levers glowing and ready. The new fuse did the trick. From up here you could light the whole stage with a push of your hand - and in a few minutes, you will.`;
+      if(G.inv.includes('spare_fuse'))return `The main lighting board, dead as a doornail: every lever down, every indicator dark. You pop the cover. There's the trouble - the main fuse holder, gaping and empty. And you, as it happens, are holding a spare fuse. Try USE FUSE, or FIT FUSE.`;
+      return `The main lighting board, dead as a doornail. Every dimmer lever is down and every little indicator light is out. You pop the cover and peer in: the main fuse holder is empty - somebody's pinched the fuse, or it blew and was never replaced. Find a spare fuse and you could bring the whole rig back to life.`;
+    },
+    take_resp:`The lighting board is a wall of switches wired into the building's bones. You're not taking it; you're trying to fix it.`},
+  follow_spot:{name:'follow-spot',art:'the',room:'lighting_box',fixed:true,
+    desc:()=>`The follow-spot: a great snub-nosed lantern on a swivel, the light that picks one person out of the dark and says to eight hundred strangers, "watch this one." ${G.flags.lights_fixed?'It hums, warm and ready, trained on the centre of the stage. On you, if you can only get there.':'Dead, for now, like everything else up here, until the board has power.'} The operator's stool beside it is empty; whoever should be here is conspicuously, infuriatingly not.`,
+    take_resp:`The follow-spot is bolted to the gallery rail and weighs a ton. Its job is to point at you, not to be carried by you.`},
+  gallery_window:{name:'gallery window',art:'the',room:'lighting_box',fixed:true,
+    desc:`The little window of the lighting box looks down over the whole auditorium and stage, the god's-eye view. From up here the audience is a single restless creature breathing in the dark, and the empty stage waits in its sad half-light like a held breath. It is, you think, the most frightening and most wonderful view in the building.`,
+    take_resp:`It's a window. It stays in its wall.`},
+  /* ── FIXED SCENERY: DIRECTOR'S OFFICE ── */
+  director_desk:{name:'cluttered desk',art:'a',room:'director_office',fixed:true,
+    desc:()=>`The Director's desk, a midden of despair: a cold cup of tea, a telephone off its hook (a tinny voice still occasionally enquiring "Hello? Hello?"), a bottle of something medicinal, and - clutched to his chest, mostly - the annotated Book. ${G.flags.has_book?'':'He won\'t let go of the Book while the world is ending. Steady his world, and he might.'}`,
+    take_resp:`Rifling the Director's desk while he weeps into it would be poor form. What you need from here is the Book, and that means dealing with the man holding it.`},
+  glory_posters:{name:'posters of past glories',art:'some',room:'director_office',fixed:true,
+    desc:`The walls are papered with the Director's better days: a West End transfer (1971), a touring "Importance" the Guardian called "spry", a season at the Old Vic he mentions on average once per conversation. The posters get newer toward the door and then, abruptly, stop, around the time the bookings dried up and he washed ashore here at the Marwood, to which he has given everything and from which he asks only that, tonight, it does not actively betray him.`,
+    take_resp:`You leave his glory days on the wall. He needs them there.`},
+  scathing_review:{name:'framed review',art:'a',room:'director_office',fixed:true,
+    desc:`A framed newspaper review, hung - bafflingly - in pride of place. You read it. It is, line by line, the single most savage notice ever printed about any production anywhere: "an evening of theatre in the way that a car crash is an evening out." At the bottom, in the Director's hand: "He was WRONG. - and the show ran two years." It is, you understand, the most important thing in the room. It is the reason he keeps going.`,
+    take_resp:`That review is load-bearing, emotionally. It stays exactly where it is.`},
+  set_model:{name:'model of the set',art:'a',room:'director_office',fixed:true,
+    desc:`A little cardboard model of tonight's set, complete with tiny painted doors and a thumbnail-sized chaise, the way directors plan a show before a single real plank is cut. There are tiny paper figures for the cast. One of them - the lead - has been very deliberately turned to face away from the audience. You suspect this was done tonight, and not by accident, and your heart goes out to the small turned-away figure and the large real one clutching the Book.`,
+    take_resp:`You leave the model be. It's the show as he dreamed it, and tonight's reality is being unkind enough to it already.`},
+};
+
+const ROOMS={
+  dressing_room:{
+    name:"The Understudy's Dressing Room",
+    desc_l:()=>`It is fourteen minutes to curtain, and you are in the smallest dressing room in the building - a converted broom cupboard on the wrong side of the corridor, which the management calls "intimate" and everyone else calls "the cupboard".\n\nThere's just room for a chair, a narrow bench, and a mirror framed with bulbs, three of them dead. A jam jar of wilting carnations stands in for the bouquets you've never had. A drab understudy's frock hangs on the back of the door - though, you remind yourself, tonight you may need something rather grander.\n\nSomewhere out front, through the walls, eight hundred people are settling into their seats with the low roar of a sea coming in. Miss Vane has vanished. The Director is, by all accounts, in pieces. And you - you, who have understudied this part for three seasons and never once gone on - are the only person in the building who knows the lines.\n\nMostly knows the lines. There is the small matter of Act Three.`,
+    desc_s:`Your cramped dressing room - the cupboard. Mirror, bench, wilting flowers, your script. The corridor lies east, and the whole anxious building beyond it.`,
+    exits:{east:'corridor',e:'corridor',out:'corridor',corridor:'corridor','leave':'corridor','exit':'corridor'},
+    feats:{
+      mirror:()=>typeof ITEMS.dressing_mirror.desc==='function'?ITEMS.dressing_mirror.desc():ITEMS.dressing_mirror.desc,
+      bulbs:`The bulbs around the mirror: a row of them, three dead, one flickering bravely. Theatre runs on these - and on people who keep going with three of their lights out, which on reflection is most of the company.`,
+      flowers:`A small bunch of carnations wilting in a jam jar. The card reads "To whoever ends up going on. Good luck. You'll need it. - The Company." It is the only bouquet you have ever received and you would not swap it for a barrowload of roses. You might be lying about that.`,
+      bench:`The narrow make-up bench: a litter of brushes, a tin of cold cream, a powder puff that has seen service, and your stick of greasepaint. Everything an actor needs to turn a frightened face into a brave one.`,
+      frock:`The understudy's frock on the back of the door: serviceable, grey, and designed to be unmemorable in a crowd scene. Not, you suspect, what the leading lady wears in Act One. If you're really going on, you'll need her costume - and that's locked in her room.`,
+      chair:`A bentwood chair with one slightly short leg, which means it rocks, which means you have spent three seasons rocking gently in it waiting for a call that never came. Tonight, perhaps, it comes.`,
+      telegram:`A yellowed telegram pinned to the wall by a previous occupant: "BREAK A LEG STOP NOT LITERALLY STOP REMEMBER WHAT HAPPENED TO REGINALD STOP." A salutary warning, even if the specifics are lost to history.`,
+      door:`The dressing-room door, with your frock on the back of it and a card slotted into the little brass holder that reads "UNDERSTUDY" - not even your name. East takes you out into the corridor.`,
+    },
+    npcs:[]
+  },
+  corridor:{
+    name:"The Backstage Corridor",
+    desc_l:`The backstage corridor: a long, dim spine of a passage with a sloping floor, lined with doors and a century of framed playbills. A bare bulb buzzes overhead. The walls are painted the particular institutional green that theatres and hospitals agree, against all evidence, is calming.\n\nThe call-board hangs here, where the company's fate is pinned each day. A red fire bucket of sand sits on its bracket. From every direction comes the muffled orchestra of a theatre fifteen minutes from curtain: the orchestra itself tuning in the pit, footsteps overhead, a distant despairing voice that can only be the Director.\n\nLabelled doors lead off in all directions - green room, wardrobe, box office, the locked prop store, Miss Vane's star room, the prompt corner toward the stage, the stage door, and a short flight up to the Director's office - into the working heart of the Marwood Empire. Type EXITS at any time to see them listed.`,
+    desc_s:`The dim backstage corridor, doors on every side, playbills on the walls, the call-board and fire bucket to hand. The whole building turns off this passage.`,
+    exits:{
+      west:'dressing_room',w:'dressing_room','dressing room':'dressing_room','cupboard':'dressing_room',
+      north:'green_room',n:'green_room','green room':'green_room',
+      south:'prompt_corner',s:'prompt_corner','prompt corner':'prompt_corner','prompt':'prompt_corner',
+      east:'stage_door',e:'stage_door','stage door':'stage_door',
+      'wardrobe':'wardrobe',
+      'box office':'box_office','box':'box_office','box-office':'box_office',
+      'director':'director_office',"director's office":'director_office','office':'director_office',
+      up:'director_office',u:'director_office',
+      'prop store':'prop_store','prop-store':'prop_store','propstore':'prop_store','store':'prop_store','props':'prop_store',
+      "miss vane's room":'diva_room','vane':'diva_room','diva':'diva_room','star':'diva_room','star dressing room':'diva_room',"cordelia's room":'diva_room','diva room':'diva_room',
+    },
+    feats:{
+      'call-board':()=>typeof ITEMS.call_board.desc==='function'?ITEMS.call_board.desc():ITEMS.call_board.desc,
+      'call board':()=>typeof ITEMS.call_board.desc==='function'?ITEMS.call_board.desc():ITEMS.call_board.desc,
+      board:()=>typeof ITEMS.call_board.desc==='function'?ITEMS.call_board.desc():ITEMS.call_board.desc,
+      'fire bucket':ITEMS.fire_bucket.desc,
+      bucket:ITEMS.fire_bucket.desc,
+      playbills:ITEMS.playbills.desc,
+      playbill:ITEMS.playbills.desc,
+      posters:ITEMS.playbills.desc,
+      bulb:`The bare bulb buzzing overhead, doing the work of three. A backstage corridor is never quite dark and never quite light; it exists in a permanent state of dress-rehearsal dusk.`,
+      draught:`There's a cold spot here, halfway down the corridor, that no amount of draught-excluder has ever cured. The old hands walk round it without noticing they're doing it. Stand in it and the hairs on your arms lift, and you understand, suddenly and completely, why nobody whistles back here. You step round it too.`,
+      'cold spot':`The famous corridor cold spot. The Grey Lady's, they say. You don't believe in ghosts. You also, you notice, do not stand in it.`,
+      walls:`The institutional green paint of the corridor walls, applied at some point in the 1950s and never since, on the theory - shared by theatres, hospitals and prisons - that green is "restful". It is not restful. It is the colour of a faintly anxious cabbage. Generations of actors have stared at it while waiting to go on and found in it a companionable fellow-sufferer.`,
+      'green paint':`The institutional green paint of the corridor, the colour of a faintly anxious cabbage. Restful, in theory. Companionable, in practice. Restful, never.`,
+      floor:`The sloping wooden floor, worn into a shallow valley down the middle by a hundred years of hurrying feet. You could walk it blindfold, which is just as well, given the lighting.`,
+      doors:`Doors everywhere, each with its painted label: the GREEN ROOM north; the PROMPT CORNER south toward the stage; the STAGE DOOR east where Albert keeps his grim vigil; and, ranged along the passage, the WARDROBE, the BOX OFFICE, the PROP STORE (locked), and MISS VANE'S room with its gold star. Up a short flight at the end is the DIRECTOR'S office. The whole building turns off this one passage.`,
+    },
+    npcs:[]
+  },
+  prompt_corner:{
+    name:"The Prompt Corner",
+    desc_l:`You step through into the prompt corner, stage left, in the wings proper now - the magical, terrifying strip of darkness from which the lit world of the stage is reached. The air smells of dust, size, and a hundred years of held breath.\n\nThe prompt desk is here, with its hooded lamp and panel of cue-lights, currently glowing an ominous standby red. Beside it looms the great iron safety curtain, lowered, with the audience murmuring behind it like the sea behind a harbour wall.\n\nMiss Quill, the prompter, sits at her desk with the stillness of a heron, the prompt copy open before her, watching the dark where the actors ought to be.\n\nThe stage itself lies west, beyond the iron. The wings open out to the south. The corridor is back to the north.`,
+    desc_s:`The prompt corner in the wings, stage left. The prompt desk glows standby-red. The iron curtain looms; the audience mutters behind it. Miss Quill keeps her watch.`,
+    exits:{
+      north:'corridor',n:'corridor',corridor:'corridor','back':'corridor',
+      west:'stage',w:'stage',stage:'stage','onstage':'stage','on stage':'stage',
+      south:'wings',s:'wings',wings:'wings',
+    },
+    feats:{
+      'prompt desk':ITEMS.prompt_desk.desc,
+      desk:ITEMS.prompt_desk.desc,
+      'cue-lights':()=>typeof ITEMS.cue_lights.desc==='function'?ITEMS.cue_lights.desc():ITEMS.cue_lights.desc,
+      'cue lights':()=>typeof ITEMS.cue_lights.desc==='function'?ITEMS.cue_lights.desc():ITEMS.cue_lights.desc,
+      lights:()=>typeof ITEMS.cue_lights.desc==='function'?ITEMS.cue_lights.desc():ITEMS.cue_lights.desc,
+      'safety curtain':ITEMS.iron_curtain.desc,
+      iron:ITEMS.iron_curtain.desc,
+      curtain:ITEMS.iron_curtain.desc,
+      lamp:`The prompt desk's hooded lamp, throwing a small disc of light onto the prompt copy and nothing else - the prompter must see the page but never the audience the page. A neat little metaphor, if you're in the mood, which fifteen minutes from curtain you are emphatically not.`,
+      lemonade:`A glass of flat lemonade on the corner of the prompt desk, going slowly warm. Miss Quill has nursed the same glass through a thousand performances. It is less a drink than a companion.`,
+      'ghost light':`In the centre of the dark stage, just visible past the iron, stands a single bare bulb on a tall stand: the ghost light, left burning on every stage in the world when the theatre sleeps, so that - depending who you ask - the ghosts can see to perform their own midnight repertoire, or simply so the first person in doesn't fall into the orchestra pit. Miss Quill, following your gaze, murmurs: "Both reasons are true. That's theatre for you."`,
+      ghost:`You ask Miss Quill, half-joking, whether the Marwood has a ghost. She does not look up. "The Grey Lady," she says, as though confirming the weather. "Walks the circle on first nights. Sat in the royal box through the whole of 'Hamlet' in '58 and left before the curtain call, which the critic also did, so make of that what you will." A pause. "She likes a good house. She'll be pleased tonight, if you don't let her down."`,
+    },
+    npcs:['prompter']
+  },
+  wings:{
+    name:"The Wings",
+    desc_l:`Deeper into the wings: the backstage no-man's-land where scenery waits, ropes vanish upward into infinite darkness, and actors stand in the gloom turning slowly green with nerves before stepping into the gold.\n\nA wall of hemp fly-ropes runs up into the fly tower overhead, each cleated and chalk-labelled. A stack of cast-iron stage weights sits by the wall; painted scenery flats lean in ranks, stately homes seen from the wrong side. A single forgotten umbrella leans in the corner, immortal.\n\nFrom here you can see the edge of the stage to the west, washed in its sad half-light. The prompt corner is back to the north. Somewhere above, in the flies, something flutters - a pigeon, probably; there's always a pigeon.`,
+    desc_s:`The wings: fly-ropes climbing into the dark, stage weights, ranked scenery flats, and one immortal umbrella. The stage edge glows west; the prompt corner is north.`,
+    exits:{
+      north:'prompt_corner',n:'prompt_corner','prompt corner':'prompt_corner','prompt':'prompt_corner',
+      west:'stage',w:'stage',stage:'stage','onstage':'stage',
+      up:'lighting_box',u:'lighting_box','ladder':'lighting_box','lighting box':'lighting_box','lighting':'lighting_box','flies':'lighting_box','fly gallery':'lighting_box',
+    },
+    feats:{
+      'fly ropes':ITEMS.fly_ropes.desc,
+      ropes:ITEMS.fly_ropes.desc,
+      rope:ITEMS.fly_ropes.desc,
+      'stage weights':ITEMS.stage_weights.desc,
+      weights:ITEMS.stage_weights.desc,
+      flats:ITEMS.scenery_flats.desc,
+      scenery:ITEMS.scenery_flats.desc,
+      umbrella:ITEMS.lost_umbrella.desc,
+      ladder:`An iron ladder bolted to the wall, climbing up into the fly gallery and the lighting box above. It looks alarming and is, the crew assure you, "perfectly safe, mostly." Up you'd go, if you needed the lights seeing to.`,
+      pigeon:`You peer up into the flies. Something pale shifts on a high beam and regards you with one round, idiotic eye. The theatre pigeon. There is always a theatre pigeon. Generations of crew have tried to evict generations of pigeon; the pigeon endures. It is, in its way, the most reliable performer in the building.`,
+    },
+    npcs:[]
+  },
+  stage:{
+    name:"The Stage",
+    desc_l:()=>`You step out of the wings and onto the stage itself, and the whole geography of fear rearranges around you. Here is the place. The boards are scuffed silver where a century of feet have found their marks. The painted parlour rises around you - three doors, a chaise, a French window. The footlights glow along the lip.\n\nBeyond them, past the lowered safety curtain, the auditorium breathes in the dark: rank on rank of seats, tonight near enough full, eight hundred people who do not yet know that the evening is hanging by a thread.\n\n${G.flags.lights_fixed?'The stage blazes now, full and golden - the board is fixed, and every lantern is doing its duty.':'But the stage sits in a dispiriting half-light: the main lighting board is dead, and you cannot, you simply cannot, perform a show in gloom like this.'}\n\nThe wings lie east and south, back into the safe dark.`,
+    desc_s:()=>`The stage. The painted parlour, the footlights, the great curtain, the breathing dark of the auditorium beyond. ${G.flags.lights_fixed?'Lit, full and golden, and ready.':'Sunk in a sad half-light - the board is still dead.'} The wings are east.`,
+    exits:{
+      east:'prompt_corner',e:'prompt_corner','prompt corner':'prompt_corner','prompt':'prompt_corner','off':'prompt_corner','offstage':'prompt_corner',
+      south:'wings',s:'wings',wings:'wings',
+    },
+    feats:{
+      footlights:()=>typeof ITEMS.footlights.desc==='function'?ITEMS.footlights.desc():ITEMS.footlights.desc,
+      'the set':ITEMS.the_set.desc,
+      set:ITEMS.the_set.desc,
+      parlour:ITEMS.the_set.desc,
+      doors:`The three doors of the parlour set, essential to any drawing-room comedy, through which characters will shortly be required to enter and exit at high speed and exactly the wrong moments. They lead, as all stage doors do, to nowhere - a flat eighteen inches of canvas and then the wings. The audience must never know.`,
+      chaise:`The set's chaise longue, where in Act One the leading lady delivers the line about the weather that gets the laugh that tells you whether it's going to be a good house. You will, if all goes well, shortly be the one delivering it. Your stomach performs a slow forward roll at the thought.`,
+      'french window':`The French window upstage, through which, on cue, characters arrive bearing news, tennis racquets, or in Act Two a body. Tonight it is merely a window onto a painted garden and the brick back wall of the theatre, but from the front it is the threshold of everything.`,
+      curtain:ITEMS.the_curtain.desc,
+      'house curtain':ITEMS.the_curtain.desc,
+      auditorium:()=>typeof ITEMS.auditorium.desc==='function'?ITEMS.auditorium.desc():ITEMS.auditorium.desc,
+      audience:()=>typeof ITEMS.auditorium.desc==='function'?ITEMS.auditorium.desc():ITEMS.auditorium.desc,
+      seats:()=>typeof ITEMS.auditorium.desc==='function'?ITEMS.auditorium.desc():ITEMS.auditorium.desc,
+      decanter:`The decanter on the set's side table, full of cold stewed tea standing in for brandy, as it has since the dawn of theatre. Every actor knows the tea-brandy. Every actor has, at some low moment, wished it were the real thing.`,
+      boards:`The stage boards themselves, scuffed to a soft silver where the marks are, dark with polish elsewhere. "Treading the boards." You have waited three seasons to genuinely tread these. You take a moment to feel them under your feet. They feel like the edge of a diving board.`,
+    },
+    npcs:[]
+  },
+  green_room:{
+    name:"The Green Room",
+    desc_l:()=>`The green room, that curious institution: the place actors wait to be wanted. It is not green, has never been green, and nobody can tell you why it's called that, though everyone has a theory and all the theories are wrong.\n\nA vast sagging chintz sofa dominates one wall. The great steel tea urn presides on a counter, ${G.flags.cocoa_made?'gently steaming in triumph':G.flags.urn_filled?'ticking its way up to the boil':'cold and switched off and sulking'}. A shelf above it holds the tin of cocoa and a row of mismatched mugs. A noticeboard bristles with rotas, complaints, and a single defiant cartoon. The empty biscuit tin sits in state, a monument to better-funded times.\n\nDoors lead back south to the corridor, and through to the wardrobe in the west.`,
+    desc_s:()=>`The green room: sagging sofa, the great tea urn (${G.flags.cocoa_made?'triumphant':G.flags.urn_filled?'heating up':'cold and sulking'}), cocoa tin on the shelf, the famously empty biscuit tin. Corridor's south; wardrobe west.`,
+    exits:{
+      south:'corridor',s:'corridor',corridor:'corridor','out':'corridor','back':'corridor',
+      west:'wardrobe',w:'wardrobe',wardrobe:'wardrobe',
+    },
+    feats:{
+      urn:()=>typeof ITEMS.urn.desc==='function'?ITEMS.urn.desc():ITEMS.urn.desc,
+      'tea urn':()=>typeof ITEMS.urn.desc==='function'?ITEMS.urn.desc():ITEMS.urn.desc,
+      sofa:ITEMS.green_sofa.desc,
+      'cocoa tin':ITEMS.cocoa_tin.desc,
+      cocoa:ITEMS.cocoa_tin.desc,
+      'biscuit tin':ITEMS.biscuit_tin.desc,
+      biscuits:ITEMS.biscuit_tin.desc,
+      tin:ITEMS.cocoa_tin.desc,
+      mugs:`A row of mismatched mugs on hooks: WORLD'S OKAYEST STAGEHAND, a chipped one from a 1979 panto, and one that simply says NO in stern capitals, which belongs to the Stage Manager and which no one has ever dared use. You may borrow the okayest-stagehand one for a worthy cause.`,
+      noticeboard:`The green-room noticeboard, an archaeology of company life: a rehearsal rota three revisions out of date, a stern notice about washing one's own mug, a flyer for a colleague's one-person show about Vita Sackville-West, and a cartoon of the Director weeping, captioned "OPENING NIGHT" - which is either prophetic or just observant.`,
+      counter:`The counter where the urn presides, sticky with the ghosts of a thousand teas, ringed with mug-stains like the growth rings of a sad tree. The cocoa tin and the mugs live up here, within easy reach of the urn.`,
+    },
+    npcs:[]
+  },
+  wardrobe:{
+    name:"The Wardrobe",
+    desc_l:`The wardrobe department: a long, low, gloriously cluttered room that smells of mothballs, face powder, and glamour gone slightly off. Rails of costumes recede into fragrant gloom; a headless tailor's dummy stands sentinel; a flat-iron heats on its stand.\n\nMrs Tassel, the wardrobe mistress, presides over it all from a chair by the work-table, a half-threaded needle held up to the light and a expression of mounting despair upon her kindly face. Something, clearly, is wrong - and it is small, and silver, and needle-threader-shaped.\n\nThe green room is back to the east.`,
+    desc_s:`The wardrobe: rails of costumes, headless Deirdre the dummy, a hot iron, Mrs Tassel despairing over a needle she can't thread. The green room lies east.`,
+    exits:{
+      east:'green_room',e:'green_room','green room':'green_room',corridor:'green_room','out':'green_room','back':'green_room',
+    },
+    feats:{
+      'costume rails':ITEMS.costume_rails.desc,
+      rails:ITEMS.costume_rails.desc,
+      costumes:ITEMS.costume_rails.desc,
+      dummy:ITEMS.mannequin.desc,
+      deirdre:ITEMS.mannequin.desc,
+      mannequin:ITEMS.mannequin.desc,
+      'sewing box':()=>typeof ITEMS.sewing_box.desc==='function'?ITEMS.sewing_box.desc():ITEMS.sewing_box.desc,
+      'work-table':()=>typeof ITEMS.sewing_box.desc==='function'?ITEMS.sewing_box.desc():ITEMS.sewing_box.desc,
+      'sewing':()=>typeof ITEMS.sewing_box.desc==='function'?ITEMS.sewing_box.desc():ITEMS.sewing_box.desc,
+      needle:`A needle, half-threaded and then abandoned in despair on the work-table. Mrs Tassel can no longer get the thread through the eye - "me eyes aren't what they were, love, though don't you dare suggest glasses" - and without her silver needle-threader she's stuck fast, with a costume that needs taking in and no way to do it.`,
+      iron:ITEMS.pressing_iron.desc,
+      headdresses:`A shelf of ostrich-feather headdresses from some long-ago revue, nodding gently in the draught like a row of very glamorous, very dusty hens. Mrs Tassel keeps meaning to throw them out and never will, because each one was worn by someone she remembers fondly and most of the people she remembers fondly are headdresses now.`,
+    },
+    npcs:['wardrobe']
+  },
+  stage_door:{
+    name:"The Stage Door",
+    desc_l:()=>`The stage door: the threshold between the ordinary world and the kingdom of greasepaint, presided over - guarded, more accurately - by Albert, the stage-door keeper, from his little glassed-in lodge.\n\nBehind his counter hangs the key board, every key on its labelled hook, the PROP STORE key gleaming centrally among them. The signing-in book lies open on the counter; his dented tartan flask stands beside it, tragically empty. A cat-flap in the lower door panel admits a draught and, historically, a cat, though no cat has been seen in years.\n\nAlbert regards you over his half-moon spectacles with the warmth of a man who has watched actors come and go for forty years and concluded that the going was generally the better part.\n\nThe corridor leads back west, into the building proper.`,
+    desc_s:()=>`Albert's stage-door lodge: the key board (${G.flags.has_prop_key?'prop-store hook now empty':'prop-store key gleaming centrally'}), the signing-in book, his sadly empty flask, a catless cat-flap. The corridor's west.`,
+    exits:{
+      west:'corridor',w:'corridor',corridor:'corridor','in':'corridor','inside':'corridor','back':'corridor',
+    },
+    feats:{
+      'key board':()=>typeof ITEMS.key_board.desc==='function'?ITEMS.key_board.desc():ITEMS.key_board.desc,
+      keys:()=>typeof ITEMS.key_board.desc==='function'?ITEMS.key_board.desc():ITEMS.key_board.desc,
+      board:()=>typeof ITEMS.key_board.desc==='function'?ITEMS.key_board.desc():ITEMS.key_board.desc,
+      'signing-in book':()=>typeof ITEMS.signing_book.desc==='function'?ITEMS.signing_book.desc():ITEMS.signing_book.desc,
+      'signing book':()=>typeof ITEMS.signing_book.desc==='function'?ITEMS.signing_book.desc():ITEMS.signing_book.desc,
+      book:()=>typeof ITEMS.signing_book.desc==='function'?ITEMS.signing_book.desc():ITEMS.signing_book.desc,
+      flask:ITEMS.keepers_flask.desc,
+      thermos:ITEMS.keepers_flask.desc,
+      'cat-flap':`A cat-flap set into the lower panel of the stage door, admitting a permanent thin draught and the memory of cats. The last official theatre cat, Albert will tell you if you let him, "had more sense than most of the leading men" and retired to a pub in 1989. Mr Pemberton, the stuffed mascot, is in some sense his successor, which says a great deal about the turnover of cats versus the permanence of taxidermy.`,
+      pigeonholes:`A grid of wooden pigeonholes behind the counter, one per company member, for post and messages. Most hold nothing. Yours has never held anything, until tonight, when it holds - you crane to look - a single note in the Stage Manager's hand: "IF VANE'S A NO-SHOW IT'S YOU. SORRY. GOOD LUCK." The apology, you feel, is the unkindest part.`,
+      lodge:`Albert's glassed-in lodge: a kettle (cold), a racing paper folded to the 3:40 at Kempton, a fan heater, and forty years of accumulated grievance against the acting profession, kept at a low simmer. It is the cosiest and most hostile six square feet in the building.`,
+    },
+    npcs:['keeper']
+  },
+  box_office:{
+    name:"The Box Office",
+    desc_l:()=>`The box office, on the public side of the building but reachable backstage through a connecting door - a cramped booth of ticket rolls, a card machine that works on alternate Tuesdays, and a window onto the foyer where, even now, late-comers are being gently refused.\n\nBrenda, the box-office manager, is hunched over a vast seating plan in an attitude of pure suffering, holding it at arm's length and then very close, defeated by the small print. A mini-fridge hums under the counter. The cash drawer is shut, counted, and watched. A vase of artificial flowers provides the room's single dab of unconvincing cheer.\n\nThe corridor is back through the connecting door, west.`,
+    desc_s:()=>`Brenda's box office: the big seating plan she ${G.flags.brenda_helped?'can read again at last':'can\'t read for the small print'}, the humming mini-fridge with its precious milk, the watched cash drawer, a vase of fake flowers. Corridor's west.`,
+    exits:{
+      west:'corridor',w:'corridor',corridor:'corridor','out':'corridor','back':'corridor','in':'corridor',
+    },
+    feats:{
+      'seating plan':()=>typeof ITEMS.seating_plan.desc==='function'?ITEMS.seating_plan.desc():ITEMS.seating_plan.desc,
+      plan:()=>typeof ITEMS.seating_plan.desc==='function'?ITEMS.seating_plan.desc():ITEMS.seating_plan.desc,
+      seating:()=>typeof ITEMS.seating_plan.desc==='function'?ITEMS.seating_plan.desc():ITEMS.seating_plan.desc,
+      'mini-fridge':()=>typeof ITEMS.mini_fridge.desc==='function'?ITEMS.mini_fridge.desc():ITEMS.mini_fridge.desc,
+      fridge:()=>typeof ITEMS.mini_fridge.desc==='function'?ITEMS.mini_fridge.desc():ITEMS.mini_fridge.desc,
+      'cash drawer':ITEMS.cash_drawer.desc,
+      float:ITEMS.cash_drawer.desc,
+      drawer:ITEMS.cash_drawer.desc,
+      vase:`A vase of artificial flowers on the counter, dusted weekly by Brenda, who maintains that fake flowers "don't die and don't drop, which is more than you can say for the leading men." They are aggressively, eternally pink.`,
+      'ticket roll':`A great roll of tonight's tickets, most of them torn off and gone - it's nearly a full house, a rare and precious thing at the Marwood, which makes the prospect of cancelling the show roughly as appealing to Brenda as personal bankruptcy.`,
+      window:`The box-office window onto the foyer, where a damp queue of latecomers is being processed and the front-of-house manager is lying smoothly about the show starting "in just a few minutes." Out there, all is calm. Out there, they have no idea.`,
+    },
+    npcs:['brenda']
+  },
+  prop_store:{
+    name:"The Prop Store",
+    desc_l:()=>`The prop store: a long, deep, cavern of a room behind a heavy locked door, where every object the Marwood Empire has ever pretended with goes to wait for its next cue. Floor-to-ceiling shelves groan with the glorious lumber of a hundred shows - skulls, crowns, rubber daggers, a wooden ham. A property coffin stands upright in one corner; a barrel of wax apples gleams in another. A drawer marked "ELECTRICAL - PROBABLY" rattles with mystery.\n\n${G.flags.prop_store_opened?'And there, on his between-shows shelf, sits Mr Pemberton the mascot, dignified and slightly moth-eaten, exactly where the Director feared he\'d be lost.':''}\n\nThe only way out is back west to the corridor.`,
+    desc_s:`The prop store: shelves of theatrical lumber, a coffin, a barrel of fake apples, the electrical drawer, and Mr Pemberton on his shelf. Corridor's west.`,
+    exits:{
+      west:'corridor',w:'corridor',corridor:'corridor','out':'corridor','back':'corridor','leave':'corridor',
+    },
+    feats:{
+      shelves:ITEMS.prop_shelves.desc,
+      props:ITEMS.prop_shelves.desc,
+      'electrical drawer':()=>typeof ITEMS.electrical_drawer.desc==='function'?ITEMS.electrical_drawer.desc():ITEMS.electrical_drawer.desc,
+      drawer:()=>typeof ITEMS.electrical_drawer.desc==='function'?ITEMS.electrical_drawer.desc():ITEMS.electrical_drawer.desc,
+      fuse:()=>typeof ITEMS.electrical_drawer.desc==='function'?ITEMS.electrical_drawer.desc():ITEMS.electrical_drawer.desc,
+      coffin:ITEMS.stage_coffin.desc,
+      'barrel':ITEMS.apple_barrel.desc,
+      apples:ITEMS.apple_barrel.desc,
+      pemberton:()=>G.inv.includes('mascot')?'You\'re already carrying Mr Pemberton.':G.flags.has_book?'Mr Pemberton has been safely returned to the Director.':'Mr Pemberton the mascot sits on his shelf: a stuffed ginger theatre cat of immense age, one eye green glass, the other a shirt button. The Director is going to pieces without him. TAKE PEMBERTON and get him upstairs.',
+      cat:()=>G.inv.includes('mascot')?'You\'re already carrying Mr Pemberton.':G.flags.has_book?'Mr Pemberton has been safely returned to the Director.':'Mr Pemberton the mascot sits on his shelf, awaiting rescue. TAKE PEMBERTON.',
+      mascot:()=>G.inv.includes('mascot')?'You\'re already carrying Mr Pemberton.':'Mr Pemberton the mascot, on his shelf. TAKE PEMBERTON.',
+      threader:()=>G.flags.threader_returned?'You\'ve already found and returned the needle-threader.':G.inv.includes('threader')?'You\'ve got the needle-threader - get it to Mrs Tassel.':'Somewhere in the button tray, Mrs Tassel\'s lost silver needle-threader glints. TAKE THREADER.',
+    },
+    npcs:[]
+  },
+  diva_room:{
+    name:"Miss Vane's Dressing Room",
+    desc_l:()=>`The star dressing room: everything yours is not. Spacious, warm, lit by a mirror whose bulbs all work, hung with a gold star on the door and fifteen years of Cordelia Vane on the walls. A red velvet chaise. A dressing table crowded with powders and a half-written note. The air is thick with her scent - tuberose and cigarettes and something underneath that you only now identify as fear.\n\n${G.flags.knows_vane_hiding?'And Cordelia herself is here: not vanished, not abducted, but folded into the corner of the chaise in her dressing gown, very small, her great dark eyes fixed on you.':'The room is empty - but the still-warm dent in the chaise, and the half-finished note, tell you that wherever the leading lady is, she was here moments ago, and may not be far.'}\n\nThe corridor lies back through the door, west.`,
+    desc_s:()=>`Miss Vane's star dressing room: chaise, a wall of her own photographs, the locked star costume, a half-written note. ${G.flags.knows_vane_hiding?'Cordelia is folded into the corner of the chaise, watching you.':'Empty - but the warm chaise says she was here moments ago.'} Corridor's west.`,
+    exits:{
+      west:'corridor',w:'corridor',corridor:'corridor','out':'corridor','back':'corridor','leave':'corridor',
+    },
+    feats:{
+      chaise:ITEMS.star_chaise.desc,
+      'wall of photographs':ITEMS.vane_photos.desc,
+      photographs:ITEMS.vane_photos.desc,
+      photos:ITEMS.vane_photos.desc,
+      costume:()=>typeof ITEMS.locked_costume.desc==='function'?ITEMS.locked_costume.desc():ITEMS.locked_costume.desc,
+      gown:()=>typeof ITEMS.locked_costume.desc==='function'?ITEMS.locked_costume.desc():ITEMS.locked_costume.desc,
+      rail:()=>typeof ITEMS.locked_costume.desc==='function'?ITEMS.locked_costume.desc():ITEMS.locked_costume.desc,
+      'note':ITEMS.half_note.desc,
+      'half-written note':ITEMS.half_note.desc,
+      'dressing table':`Cordelia's dressing table, a glorious clutter of greasepaints, powders, a silver-backed brush, a cut-glass scent bottle, and the half-written note weighted under a powder compact. Everything here is better than yours, except the note, which is the saddest thing you've read all night.`,
+      star:`The gold star on the door - a real one, screwed on, not the stick-on kind. Fifteen years she's had the star on this door. The thought of someone else's name going up, you realise, may be precisely what has frightened her into hiding.`,
+      perfume:`The scent bottle: tuberose, heavy and grand and unmistakably hers. Generations of audiences have caught a drift of it from the front row and known the star had arrived. Underneath the perfume tonight, though, is the sharp animal smell of stage fright, which no scent in the world quite covers.`,
+    },
+    npcs:['vane']
+  },
+  lighting_box:{
+    name:"The Lighting Box",
+    desc_l:()=>`Up the iron ladder to the lighting box, a cramped eyrie high at the back of the auditorium with a window looking down over the whole house. This is where the show is lit, where one person in the dark decides what eight hundred people are allowed to see.\n\nThe lighting board fills one wall: rows of dimmer levers, ${G.flags.lights_fixed?'alive now and glowing, every indicator lit':'every one of them dead and dark'}. The great follow-spot sits on its swivel by the window, ${G.flags.lights_fixed?'humming and ready':'cold'}. The operator's stool is empty - whoever should be running lights tonight is nowhere to be found, which in the current crisis is just one more thing.\n\nThe ladder leads back down to the wings.`,
+    desc_s:()=>`The lighting box, high over the house. The board (${G.flags.lights_fixed?'alive and glowing':'dead and dark'}), the follow-spot, the empty operator's stool, the god's-eye window over the auditorium. The ladder's down.`,
+    exits:{
+      down:'wings',d:'wings',ladder:'wings',wings:'wings','back':'wings','climb down':'wings',
+    },
+    feats:{
+      'lighting board':()=>typeof ITEMS.lighting_board.desc==='function'?ITEMS.lighting_board.desc():ITEMS.lighting_board.desc,
+      board:()=>typeof ITEMS.lighting_board.desc==='function'?ITEMS.lighting_board.desc():ITEMS.lighting_board.desc,
+      levers:()=>typeof ITEMS.lighting_board.desc==='function'?ITEMS.lighting_board.desc():ITEMS.lighting_board.desc,
+      dimmers:()=>typeof ITEMS.lighting_board.desc==='function'?ITEMS.lighting_board.desc():ITEMS.lighting_board.desc,
+      'follow-spot':()=>typeof ITEMS.follow_spot.desc==='function'?ITEMS.follow_spot.desc():ITEMS.follow_spot.desc,
+      spot:()=>typeof ITEMS.follow_spot.desc==='function'?ITEMS.follow_spot.desc():ITEMS.follow_spot.desc,
+      'fuse holder':()=>typeof ITEMS.lighting_board.desc==='function'?ITEMS.lighting_board.desc():ITEMS.lighting_board.desc,
+      window:ITEMS.gallery_window.desc,
+      stool:`The light operator's stool, empty, a cardigan over the back of it and a half-drunk thermos beside it, as if its owner stepped out for a moment two hours ago and walked into the sea. Nobody knows where Kevin from lighting has gone. There is always, somewhere in every theatre, a missing Kevin.`,
+      thermos:`A thermos of cold tea abandoned by the absent Kevin. You do not drink another man's abandoned thermos tea. There are depths to which even a desperate understudy will not sink.`,
+      graffiti:`The walls of the lighting box, like the walls of every lighting box since the invention of the lighting box, are a palimpsest of crew graffiti: "TONY WOZ ERE 1987", a startlingly good biro sketch of the leading man as a startled owl, a tally of performances scratched into the paint that stops, ominously, mid-stroke, and the eternal backstage koan: "IF IT'S TOO LOUD YOU'RE TOO OLD - SEE THE SOUND DESK FOR DETAILS." You add nothing. Some walls have said enough.`,
+      cue_sheet:`A laminated cue sheet taped beside the board, Kevin's hieroglyphics in four colours of highlighter: "LX 14 - SLOW BUILD - DON'T RUSH IT KEVIN", "FOLLOW SPOT: FIND HER, HOLD HER, LOVE HER", and at the bottom, underlined three times, "REMEMBER THE FUSE." Too late for that last one, Kevin. Far too late.`,
+    },
+    npcs:[]
+  },
+  director_office:{
+    name:"The Director's Office",
+    desc_l:()=>`Up a short flight from the corridor, the Director's office: part workplace, part shrine, part field hospital. The walls are papered with posters of his better days; a framed review hangs in baffling pride of place. A cardboard model of tonight's set sits on a side table, one little figure turned pointedly away.\n\nMr Bellweather himself is collapsed across his cluttered desk amid a wreckage of cold tea and a telephone left off the hook. ${G.flags.has_book?'He is calmer now - hollowed out, but calmer - and the Book is no longer clutched to his chest.':'Clutched to his chest, white-knuckled, is the annotated Book: the one complete copy of the play, and your only hope of knowing Act Three. He will not, in his current state, be parted from it. He needs steadying first.'}\n\nThe corridor is back down the steps.`,
+    desc_s:()=>`The Director's office-cum-shrine: posters of past glories, that framed savage review, the set model, and Mr Bellweather ${G.flags.has_book?'hollowed-out but calm at last':'collapsed over his desk, clutching the precious Book'}. The corridor's down the steps.`,
+    exits:{
+      down:'corridor',d:'corridor',corridor:'corridor','out':'corridor','back':'corridor','downstairs':'corridor',
+    },
+    feats:{
+      desk:()=>typeof ITEMS.director_desk.desc==='function'?ITEMS.director_desk.desc():ITEMS.director_desk.desc,
+      'the book':()=>typeof ITEMS.director_desk.desc==='function'?ITEMS.director_desk.desc():ITEMS.director_desk.desc,
+      posters:ITEMS.glory_posters.desc,
+      'past glories':ITEMS.glory_posters.desc,
+      review:ITEMS.scathing_review.desc,
+      'framed review':ITEMS.scathing_review.desc,
+      model:ITEMS.set_model.desc,
+      'set model':ITEMS.set_model.desc,
+      telephone:`The telephone, off its hook and forgotten, a tinny voice still issuing from the earpiece at intervals - "Hello? Mr Bellweather? Are you - hello?" It is, you gather, the regional newspaper, ringing to ask whether it's true the gala is in trouble. Nobody has had the heart, or the nerve, to answer.`,
+      phone:`The telephone, off its hook and forgotten, a tinny voice still issuing from the earpiece - the local paper, smelling a story. Best left exactly where it is.`,
+      decanter:`A decanter of something amber and medicinal on the desk, and a single smeared glass. The Director's "nerve tonic". He has not, you note with relief, actually drunk any; he has merely been holding it, for the comfort of having it to hand. Even his despair is, at heart, theatrical.`,
+    },
+    npcs:['director']
+  },
+};
+
+const NPCS={
+  prompter:{
+    name:'Miss Quill',
+    rooms:['prompt_corner'],
+    examine:`Miss Quill, the prompter: a small, still, grey woman of indeterminate age who has whispered the right word into the silence after a hundred dried-up actors and never once been thanked aloud. She knows this play, and every play, and most of the people, better than they know themselves. She speaks, always, in the low carrying murmur of the prompt corner, which means even her smallest remark sounds like a secret.`,
+    greet:[
+      `Miss Quill does not look up from the prompt copy. "You'll be going on, then," she murmurs - not a question. "Three seasons you've waited. Funny how it always comes like this: not with a clean swap, but with the whole building on fire." She turns a page. "You know the first two acts. It's Act Three that'll sink you - and your copy's a tea-stain, I'd put money on it." She is, of course, exactly right.`,
+      `"There's one whole Act Three in this theatre that isn't ruined," Miss Quill whispers, "and that's the Director's Book. The master copy. He's upstairs, clutching it like a drowning man clutches the man trying to save him." A pause. "He won't give it up while he thinks the night's already lost. Give him a reason to hope, and he'll hand it over - he wants this show to happen more than any of us. He's just forgotten that, under the panic."`,
+      `Miss Quill's eyes flick toward the dark above the stage. "Three things make a show, when it comes to it," she breathes. "The actor knows the part. The actor's dressed for it. And the lights come up. Lose any one and your eight hundred friends out there go home cross. Mind you sort all three." She returns to her page. "I'll be right here. I always am. Nobody ever remembers the prompter until the silence."`
+    ],
+    talk:[
+      `"The Book first," murmurs Miss Quill. "Lines before frocks before lamps, if you want my order of service. A dressed actor with no words is just a well-turned-out disaster."`,
+      `"Whistling," Miss Quill says, without looking up, in answer to a sound only she heard, "is how you call the flymen in the old days - whistle the wrong cue and a hundredweight of scenery comes down on your head. So we don't whistle backstage. We don't say the Scottish name. And we don't, ever, wish each other good luck." A beat. "Break a leg, by the way."`,
+      `Miss Quill turns a page. "I've prompted leading ladies through divorces, drink, and one memorable nervous collapse during the interval of a farce. Whatever's got into Cordelia, it's not temperament. I've known her twenty years. That woman's frightened. Frightened people hide." She lets that sit. "You might be kinder to find her than to replace her. But that's not for me to say. I only say the lines."`
+    ],
+    wandered:false,talkCount:0,greetIdx:0,spoken:false,
+    wander_off:`Miss Quill says nothing further. She has told you everything that matters and several things that don't yet, and now she waits, as prompters wait, in the ready dark.`,
+    take:`Miss Quill gives you a look that could prompt a man clean off the stage. "I am not," she breathes, "a prop." You retreat.`
+  },
+  director:{
+    name:'Mr Bellweather',
+    rooms:['director_office'],
+    examine:()=>G.flags.has_book
+      ?`Mr Bellweather, the Director: a large, theatrical wreck of a man, hollowed out by the evening but - since Mr Pemberton's safe return - no longer actively disintegrating. He watches you with the desperate hope of a man who has handed someone else the wheel and is trying very hard not to grab it back.`
+      :`Mr Bellweather, the Director: a large man built for grand gestures, currently folded over his own desk like a deckchair that has given up. He clutches the annotated Book to his chest. Forty years in the theatre have brought him to this provincial gala, and the universe has chosen tonight, of all nights, to take away his leading lady AND - he keeps saying it - his cat.`,
+    greet:[
+      `Mr Bellweather lifts his head from the desk and fixes you with a bloodshot eye. "You. The understudy." He says "understudy" the way other men say "iceberg". "Do you know what's happened? Cordelia's GONE. The house is FULL. And Mr Pemberton -" his voice cracks "- Mr Pemberton is NOT IN THE WINGS. Forty years he's watched every opening from his cushion and tonight, the one night, he is GONE. We are cursed. The show is finished. Finished!" He clutches the Book tighter and puts his head back down.`
+    ],
+    talk:()=>{
+      if(G.flags.has_book)return null;
+      if(G.inv.includes('mascot')){
+        return '__GIVE_MASCOT__';
+      }
+      return [
+        `"I can't think about lines!" wails Mr Bellweather into the desk. "I can't think about anything! Find Pemberton! A theatre without its cat is a theatre without its SOUL! He's our luck - he's been our luck since 1931 - and without him on his cushion I cannot, I WILL not, raise that curtain." He peers up. "He's probably in the prop store. It got locked. Everything's locked. Everything's lost. Bring him back to me and I might - I might - believe we have a chance."`,
+        `"The Book?" He clutches it closer. "This is the only whole copy of the play in the building and I am NOT letting it go while we're doomed. Bring me Pemberton. Give me one reason to think tonight isn't a catastrophe, and it's yours, and the part with it. Until then -" he shudders "- until then there is no show, so there are no lines, so there is no Book."`,
+        `Mr Bellweather has his head in his hands. "Reginald," he is muttering. "Remember Reginald." Nobody remembers Reginald. It doesn't seem the moment to point this out.`
+      ];
+    },
+    wandered:false,talkCount:0,greetIdx:0,spoken:false,
+    wander_off:`Mr Bellweather sinks back over his desk. He has said his piece, which is, in essence: find the cat.`,
+    take:`"I am the DIRECTOR," says Mr Bellweather, with a flicker of his old grandeur. "I am not to be HANDLED." The grandeur collapses. "Find the cat.")`.replace(')',''),
+  },
+  keeper:{
+    name:'Albert',
+    rooms:['stage_door'],
+    examine:`Albert, the stage-door keeper: forty years on the door, a cardigan the colour of weak tea, half-moon spectacles, and a settled, almost religious conviction that the building would run beautifully if it weren't for the actors. He is not unkind. He is simply waiting for everyone to leave so he can lock up, which is, when you think about it, his entire job and his entire philosophy.`,
+    greet:[
+      `Albert lowers his racing paper a precise inch and regards you over his spectacles. "Understudy," he says, identifying you the way a farmer identifies a particular sheep. "Going on, are we? Well. Mind you sign the book." He raises the paper again. Then, from behind it: "And no, before you ask, you can't have a key. Actors and keys. Like toddlers and matches."`,
+      `The paper lowers again. "Prop store, is it? The mascot?" Albert sniffs. "Aye, that's locked, and the key's on my board, and on my board it stays, because the LAST time I lent the prop-store key to an actor it came back three weeks later in a different county." He folds his arms. "I'm not an unreasonable man. But I've had no cocoa - that blessed urn's packed in - and a keeper with no hot drink doesn't do favours. Sort me a cocoa and we'll talk about your key. Not before."`,
+      `"Hot cocoa," Albert repeats, with the firmness of a man stating his price. "Made proper, with milk, none of your black sludge. You manage that, and the prop-store key's yours for as long as you need it - within reason, and signed for. That urn in the green room's the trouble. Get it going. I've been dreaming of that cocoa since the half." He almost, almost, smiles. "Go on. Surprise me."`
+    ],
+    talk:[
+      `"Cocoa," says Albert, not unkindly. "I'll know it when I taste it. The urn's in the green room and it wants water in it and switching on, and a drop of milk makes all the difference - black cocoa's a punishment, not a treat." He taps the empty flask. "I'll have my flask filled too, while you're about it, if you're feeling generous. But the mug's the price of the key."`,
+      `Albert turns to the racing page. "I've kept this door through six artistic directors, two floods and a small fire," he says. "I'll keep it through tonight. You just bring me my cocoa." He underlines a horse. "Lucky Understudy, three-forty at Kempton. Forty to one. There's an omen in that, if you're the superstitious sort. I'm not. But there it is."`,
+      `"Still no cocoa?" Albert peers at your empty hands and sighs the sigh of forty years. "Green room. Urn. Water, switch, milk, cocoa, mug. It's not Hamlet." He pauses. "Well. Some nights I'd say it's harder."`
+    ],
+    wandered:false,talkCount:0,greetIdx:0,spoken:false,
+    wander_off:`Albert returns to the 3:40 at Kempton. The terms are clear and the terms are cocoa. There is no more to be said until a hot mug is in his hand.`,
+    take:`Albert doesn't even lower the paper. "Try it," he says, "and you'll be barred from this door, this theatre, and - I'll see to it personally - the profession." You believe him.`
+  },
+  wardrobe:{
+    name:'Mrs Tassel',
+    rooms:['wardrobe'],
+    examine:`Mrs Tassel, the wardrobe mistress: round, warm, and quick, with a tape-measure round her neck like a vicar's stole and a pincushion strapped to her wrist. She has dressed every actor in this building, knows all their secrets and all their measurements (the second being, she says, the more closely guarded), and treats costumes as living things in her temporary care. She is squinting, at present, at the eye of a needle as though it has personally betrayed her.`,
+    greet:[
+      `Mrs Tassel looks up from her hopeless needle with relief. "Oh, a face! Come in, love, come in. You'll be the one going on, God love you, in that gown of Cordelia's, which is a good two sizes off you and will need taking in sharpish - I can do it, three pins and a tuck, I've worked miracles in less time." Her face falls. "IF I can thread a blessed needle, which I can't, because I've gone and lost my little silver threader, and my eyes -" she catches herself "- my eyes are PERFECTLY FINE, it's the needle's at fault. But I'm stuck, love. Properly stuck."`,
+      `"My needle-threader," Mrs Tassel says, miming a small silver implement. "Shaped like a little lady's head, wire loop for the hair - you'll know it. I had it not an hour ago. I'll bet you it's rolled off somewhere and ended up in the prop store - things have a way of migrating to that prop store, like an elephants' graveyard for odds and ends. Find me that, and I can thread up and take Cordelia's gown in for you in a tick." She lowers her voice. "And another thing. That gown's on a locked rail in her room, but the lock's a paltry little thing - a stout pin and a steady hand. Get me my threader and I'll show you the trick of it myself; I'll not have you butchering a costume of mine with a hatpin unsupervised."`
+    ],
+    talk:()=>{
+      if(G.flags.has_costume)return [
+        `"You look the part now, love," beams Mrs Tassel, "and that's half of acting, whatever they tell you. Knock 'em dead. Not literally. Remember Reginald."`,
+        `Mrs Tassel is already back at her mending, humming. "Go on," she says, "they're waiting. And the gown sits beautiful on you, if I say so myself."`
+      ];
+      if(G.flags.threader_returned)return '__DRESS_PROMPT__';
+      if(G.inv.includes('threader'))return '__GIVE_THREADER__';
+      return [
+        `"Still no threader, love?" Mrs Tassel sighs. "Have a hunt in the prop store. Small, silver, little lady's head. Without it I can't take that gown in, and you can't go on dressed as a parlourmaid when you're meant to be the mistress of the house." She squints again at the needle and gives up.`,
+        `"It's not vanity, the gown," she says, threading nothing. "An audience forgives a fluffed line. They never forgive a costume that doesn't fit - it tells them, somewhere they don't even notice, that nobody's in charge. So we get it right. Soon as I've my threader."`
+      ];
+    },
+    wandered:false,talkCount:0,greetIdx:0,spoken:false,
+    wander_off:`Mrs Tassel turns back to Deirdre the dummy with a sigh and a mouthful of pins. The next move, clearly, is to find that threader.`,
+    take:`"Hands OFF, you, I'm not a bolt of cloth," says Mrs Tassel, but she's half laughing. "Go and be useful. Find my threader."`
+  },
+  brenda:{
+    name:'Brenda',
+    rooms:['box_office'],
+    examine:`Brenda, the box-office manager: a brisk, anxious woman who has held this theatre together with a card machine and willpower for longer than anyone can remember, and who regards the artistic side of the building as a beautiful, expensive, unreliable pet. She is currently at war with a seating plan and losing.`,
+    greet:[
+      `Brenda thrusts the seating plan at you the instant you appear, as drowning people thrust things at passing boats. "You - can you READ this? There's a VIP party, the Mayor and some sponsor, front of the circle, and I cannot make out these seat numbers to save my life, the print gets smaller every YEAR -" she holds it at arm's length, then close "- and if I sit the Mayor in the wrong seat there'll be MURDER, and I've a queue, and -" she stops, breathes. "Sorry. It's been a night."\n\nShe narrows her eyes at you. "Milk, is it? For the keeper's cocoa? Everyone wants something tonight. Tell you what - you help ME first. Read me these seat numbers off the plan so I can place this wretched VIP party, and the milk's yours. TALK to me again when you're ready to read."`
+    ],
+    talk:()=>{
+      if(G.flags.has_milk)return [
+        `"Milk's gone, I've placed my Mayor, and for the first time tonight something has gone RIGHT," says Brenda. "Now go and save the show so all these lovely full-price seats don't ask for their money back."`,
+        `Brenda is happily inking little crosses onto her seating plan. "Front of the circle for the Mayor," she murmurs. "Perfect. Off you go, love."`
+      ];
+      if(G.flags.brenda_helped)return '__GIVE_MILK__';
+      return [
+        `"Help me with the plan first, love," says Brenda, waving it. "I can't read the little numbers and I won't say why -" (it is very obviously her eyesight) "- and once that Mayor's placed, the milk is yours." She holds the plan up to the light in vain.`,
+        `"Everyone thinks the box office is the easy job," Brenda mutters. "Nobody's ever had to seat a Mayor, a sponsor AND the sponsor's wife, who do not all speak to each other, in a single row, by feel, because the print's too small. Read me the numbers, love. Please."`
+      ];
+    },
+    wandered:false,talkCount:0,greetIdx:0,spoken:false,
+    wander_off:`Brenda turns back to her plan and her queue, the eternal twin pressures of the box office. Read her those seat numbers and the milk is as good as yours.`,
+    take:`"I'm not for taking anywhere, love, I've a float to count," says Brenda. "Twice before, twice after. It's the only thing in this building that adds up."`
+  },
+  vane:{
+    name:'Cordelia Vane',
+    rooms:['diva_room'],
+    examine:()=>G.flags.knows_vane_hiding
+      ?`Cordelia Vane, the leading lady, the terror and glory of the Marwood Empire for fifteen years - and, right now, a frightened woman of a certain age folded into the corner of her own chaise in a dressing gown, her famous dark eyes huge in a face scrubbed bare of its armour. Without the make-up, without the gown, without the grandeur, she looks exactly like what she is tonight: someone who has suddenly, after a lifetime, become afraid of the one thing she was always sure of.`
+      :`There's no one here to examine - only the warm dent in the chaise where someone was sitting moments ago.`,
+    greet:[
+      `Cordelia watches you for a long moment without her usual performance. "So they sent the understudy," she says at last, very quietly, no grandeur in it at all. "Of course they did. Three seasons you've waited for me to break a leg, and here I am, not broken, just -" she gestures at herself "- stopped. I can't go on. I've gone on eight thousand times and tonight I simply... can't. The full house. The Mayor. The notion that this one might be the night they finally see I'm too old, too tired, finished -" She stops. "Don't tell Bellweather I'm here. Let them think I vanished. It's a kinder story than the truth."`
+    ],
+    talk:()=>{
+      return [
+        `"You think I'm being a monster," Cordelia says. "The diva, sulking. I've read the same reviews you have - 'Vane, still capable of moments.' MOMENTS. Forty years and I'm down to moments." She pulls the dressing gown tighter. "Out there are eight hundred people and any one of them might be the one who finally thinks: she's past it. And I would rather vanish into a story about a missing leading lady than stand in the light and find out."`,
+        `You find yourself telling her the truth: that you'd give anything for one of the nights she's frightened of. That the light she's hiding from is the only thing you've ever wanted to stand in. That an audience doesn't come to catch you failing - they come, eight hundred of them on a damp night, hoping with their whole hearts that you'll be wonderful, because if you are, then maybe they can be too.\n\nCordelia is quiet for a long time. "When did the understudy get wise?" she says, but her voice has changed.`,
+        `Cordelia stands. Something settles back into her spine, vertebra by vertebra - not the diva's armour, something older and better. "I'm not going on tonight," she says. "That much is true. But YOU are. And you're going on right." She unpins a great glittering paste brooch from her dressing gown and closes your hand around it. "For luck. It's seen more first nights than God and it's never let me down - tonight excepted, and that's my fault, not its." She manages a smile. "Wear my gown. Say my lines. And when you get the laugh on the weather line in Act One - you will, if you wait half a beat longer than feels safe - know that somewhere in the dark I'm hearing it. Now GO. You'll want Mrs Tassel for the gown. Tell her I sent you. She'll cry. She always cries."`
+      ];
+    },
+    wandered:false,talkCount:0,greetIdx:0,spoken:false,
+    wander_off:`Cordelia waves you out with a flick of the wrist that is, for the first time tonight, almost playful. "Go on. Go and be wonderful. One of us ought to be, tonight."`,
+    take:`"Darling," says Cordelia, with a ghost of her old steel, "no one takes Cordelia Vane anywhere. She arrives, or she does not arrive. Tonight she does not arrive - but you will." `
+  },
+};
+
+/* ── GAME STATE ── */
+const G={
+  turns:0,score:0,flags:{},location:'dressing_room',
+  history:[],histIdx:-1,gameOver:false,
+  visited:new Set(),
+  inv:['ruined_script','greasepaint','rabbits_foot','safety_pin'],
+  lastText:'',awaitingRestartConfirm:false
+};
+const MAXSCORE=168;
+
+/* ── OUTPUT ENGINE ── */
+const outEl=document.getElementById('output-region');
+const srEl=document.getElementById('sr-live');
+let curChunk=null,srBuf=[];
+function startChunk(heading){
+  curChunk=document.createElement('section');curChunk.className='chunk';
+  if(_pendingCmd){
+    var sep=document.createElement('div');sep.className='cmd-sep';sep.setAttribute('aria-hidden','true');
+    var ys=document.createElement('h3');ys.className='you-said-label';ys.textContent='You said:';sep.appendChild(ys);
+    var yp=document.createElement('p');yp.className='you-said-text';yp.textContent=_pendingCmd;sep.appendChild(yp);
+    var is=document.createElement('h3');is.className='i-said-label';is.textContent='I said:';sep.appendChild(is);
+    curChunk.appendChild(sep);
+    _pendingCmd='';
+  }
+  if(heading){const h=document.createElement('h2');h.textContent=heading;curChunk.appendChild(h);}
+  outEl.appendChild(curChunk);srBuf=heading?[heading]:[];
+}
+function endChunk(){
+  const txt=srBuf.join('\n');G.lastText=txt;
+  srEl.textContent='';void srEl.offsetWidth;srEl.textContent=txt;
+  outEl.scrollTop=outEl.scrollHeight;curChunk=null;srBuf=[];
+}
+function op(text,cls){
+  if(!text&&text!==0)return;
+  String(text).split('\n').forEach(line=>{
+    const el=document.createElement('p');
+    if(cls)el.className='t-'+cls;
+    el.textContent=line;
+    (curChunk||outEl).appendChild(el);
+    srBuf.push(line);
+  });
+}
+function ohr(){const e=document.createElement('hr');e.setAttribute('aria-hidden','true');(curChunk||outEl).appendChild(e);}
+var _pendingCmd='';
+function showCmd(cmdText){_pendingCmd=cmdText;}
+function addScore(pts,reason){G.score+=pts;op('[+'+pts+' points: '+reason+']','score');upStatus();}
+function clockText(){
+  /* 15 minutes to curtain, ticking down softly with turns; never hits zero (no fail state) */
+  var mins=Math.max(1,15-Math.floor(G.turns/8));
+  if(G.flags.show_complete)return 'CURTAIN UP';
+  if(G.flags.show_ready)return 'BEGINNERS';
+  return mins+' min';
+}
+function upStatus(){
+  document.getElementById('s-loc').textContent=ROOMS[G.location]?ROOMS[G.location].name:'-';
+  document.getElementById('s-clock').textContent=clockText();
+  document.getElementById('s-turns').textContent=G.turns;
+  document.getElementById('s-score').textContent=G.score+' / '+MAXSCORE;
+}
+function roomItems(rid){return Object.entries(ITEMS).filter(([,it])=>it.room===rid).map(([id])=>id);}
+function inScope(id){return G.inv.includes(id)||(ITEMS[id]&&ITEMS[id].room===G.location);}
+function itemArt(id){var it=ITEMS[id];return it.art?it.art+' '+it.name:it.name;}
+function findItem(frag){
+  const f=frag.toLowerCase().trim();const pool=[...G.inv,...roomItems(G.location)];
+  if(ITEMS[f]&&pool.includes(f))return f;
+  let m=pool.find(id=>ITEMS[id].name.toLowerCase()===f);if(m)return m;
+  const fw=f.split(/\s+/).filter(w=>w.length>2);
+  const scored=pool.map(id=>{const n=ITEMS[id].name.toLowerCase();let sc=0;
+    if(n.includes(f))sc=f.length/n.length;
+    else{const ov=fw.filter(w=>n.includes(w)).length;if(ov)sc=ov/fw.length*0.7;}
+    return{id,sc};}).filter(x=>x.sc>0.15).sort((a,b)=>b.sc-a.sc);
+  return scored.length?scored[0].id:null;
+}
+function findFeat(frag,rid){
+  const feats=ROOMS[rid].feats;if(!feats)return null;const f=frag.toLowerCase();
+  if(feats[f]!==undefined)return f;
+  return Object.keys(feats).find(k=>k.includes(f)||f.includes(k))||null;
+}
+function findItemAll(frag){
+  const f=frag.toLowerCase().trim();const pool=[...G.inv,...roomItems(G.location)];
+  if(ITEMS[f]&&pool.includes(f))return[f];
+  const exact=pool.find(id=>ITEMS[id].name.toLowerCase()===f);
+  if(exact)return[exact];
+  const fw=f.split(/\s+/).filter(w=>w.length>2);
+  const scored=pool.map(id=>{const n=ITEMS[id].name.toLowerCase();let sc=0;
+    if(n.includes(f))sc=f.length/n.length;
+    else{const ov=fw.filter(w=>n.includes(w)).length;if(ov)sc=ov/fw.length*0.7;}
+    return{id,sc};}).filter(x=>x.sc>0.15).sort((a,b)=>b.sc-a.sc);
+  return scored.map(x=>x.id);
+}
+function findFeatAll(frag,rid){
+  const feats=ROOMS[rid].feats;if(!feats)return[];const f=frag.toLowerCase();
+  if(feats[f]!==undefined)return[f];
+  return Object.keys(feats).filter(k=>k.includes(f)||f.includes(k));
+}
+/* Disambiguation state */
+var _disambigChoices=null;
+function showDisambig(choices){
+  _disambigChoices=choices;
+  startChunk('Which did you mean?');
+  choices.forEach(function(ch,i){op((i+1)+'. '+ch.label,'items');});
+  op('Type a number, or the name of what you meant.','system');
+  endChunk();
+}
+function resolveDisambig(input){
+  if(!_disambigChoices)return false;
+  const n=parseInt(input,10);
+  if(!isNaN(n)&&n>=1&&n<=_disambigChoices.length){
+    _disambigChoices[n-1].action();_disambigChoices=null;return true;
+  }
+  const f=input.toLowerCase();
+  const match=_disambigChoices.find(function(ch){
+    return ch.label.toLowerCase().includes(f)||f.includes(ch.label.toLowerCase().split(' ')[0]);
+  });
+  if(match){match.action();_disambigChoices=null;return true;}
+  _disambigChoices=null;return false;
+}
+function needsDisambig(items,feats){
+  var effectiveFeats=feats.filter(function(fk){
+    return !items.some(function(id){
+      var n=ITEMS[id].name.toLowerCase();
+      return n.includes(fk.toLowerCase())||fk.toLowerCase().includes(n.split(' ')[0]);
+    });
+  });
+  return(items.length+effectiveFeats.length)>1;
+}
+function makeDisambigChoices(cmd,items,feats){
+  var choices=[];
+  items.forEach(function(id){
+    choices.push({label:ITEMS[id].name,action:function(){
+      if(cmd==='examine')cmdExamineDirect(id,null);
+      else if(cmd==='take')cmdTakeDirect(id);
+    }});
+  });
+  var effectiveFeats=feats.filter(function(fk){
+    return !items.some(function(id){
+      var n=ITEMS[id].name.toLowerCase();
+      return n.includes(fk.toLowerCase())||fk.toLowerCase().includes(n.split(' ')[0]);
+    });
+  });
+  effectiveFeats.forEach(function(fk){
+    choices.push({label:fk,action:function(){if(cmd==='examine')cmdExamineDirect(null,fk);}});
+  });
+  return choices;
+}
+function cmdExamineDirect(iid,fk){
+  startChunk();
+  if(iid&&inScope(iid)){
+    const it=ITEMS[iid];const d=typeof it.desc==='function'?it.desc():it.desc;
+    d.split('\n').forEach(l=>op(l));handleItemExamineEffects(iid);endChunk();return;
+  }
+  if(fk){
+    const fv=ROOMS[G.location].feats[fk];const ft=typeof fv==='function'?fv():fv;
+    ft.split('\n').forEach(l=>op(l));handleFeatExamineEffects(fk);endChunk();return;
+  }
+}
+function cmdTakeDirect(iid){
+  startChunk();const it=ITEMS[iid];
+  if(it.fixed){op(it.take_resp||'It\'s firmly fixed in place.','error');endChunk();return;}
+  G.inv.push(iid);ITEMS[iid].room=null;
+  op('You take '+itemArt(iid)+'.','success');upStatus();endChunk();
+}
+function findNPC(frag){
+  const room=ROOMS[G.location];if(!room.npcs)return null;const f=frag.toLowerCase();
+  return room.npcs.find(nid=>{
+    const n=NPCS[nid];if(!n)return false;
+    if(nid==='vane'&&!G.flags.knows_vane_hiding)return false;
+    return n.name.toLowerCase().includes(f)||
+      (nid==='prompter'&&(inc(f,'prompter')||inc(f,'quill')||inc(f,'woman')))||
+      (nid==='director'&&(inc(f,'director')||inc(f,'bellweather')||inc(f,'man')))||
+      (nid==='keeper'&&(inc(f,'keeper')||inc(f,'albert')||inc(f,'doorman')||inc(f,'stage door')))||
+      (nid==='wardrobe'&&(inc(f,'wardrobe')||inc(f,'tassel')||inc(f,'mistress')||inc(f,'seamstress')||inc(f,'woman')))||
+      (nid==='brenda'&&(inc(f,'brenda')||inc(f,'box office')||inc(f,'manager')||inc(f,'woman')))||
+      (nid==='vane'&&(inc(f,'vane')||inc(f,'cordelia')||inc(f,'diva')||inc(f,'star')||inc(f,'leading lady')||inc(f,'actress')||inc(f,'woman')));
+  })||null;
+}
+
+/* ── ROOM DESCRIPTION ── */
+function descRoom(force){
+  const room=ROOMS[G.location];
+  const isNew=!G.visited.has(G.location);if(isNew)G.visited.add(G.location);
+  startChunk(room.name);
+  const descFn=(isNew||force)?room.desc_l:room.desc_s;
+  const desc=typeof descFn==='function'?descFn():descFn;
+  desc.split('\n').filter(l=>l.trim()).forEach(l=>op(l));
+  const vis=roomItems(G.location).filter(id=>!ITEMS[id].fixed&&!ITEMS[id].hidden);
+  if(vis.length)op('You can see: '+vis.map(id=>ITEMS[id].name).join(', ')+'.','items');
+  (room.npcs||[]).forEach(nid=>{
+    const n=NPCS[nid];if(n&&n.rooms.includes(G.location)&&!n.wandered){
+      if(nid==='prompter')op('Miss Quill keeps her still watch at the prompt desk.','npc');
+      else if(nid==='director')op(G.flags.has_book?'Mr Bellweather slumps at his desk, hollowed out but calm.':'Mr Bellweather is collapsed over his desk, clutching the Book.','npc');
+      else if(nid==='keeper')op('Albert watches you over his racing paper from the lodge.','npc');
+      else if(nid==='wardrobe')op('Mrs Tassel despairs over an unthreadable needle.','npc');
+      else if(nid==='brenda')op('Brenda wrestles with the seating plan, defeated by the small print.','npc');
+      else if(nid==='vane'&&G.flags.knows_vane_hiding)op('Cordelia Vane is folded into the corner of the chaise, watching you.','npc');
+    }
+  });
+  const seen=new Set();const exitLines=[];
+  Object.entries(room.exits).forEach(([dir,dest])=>{
+    if(!seen.has(dest)&&ROOMS[dest]){seen.add(dest);
+      const sh=Object.entries(room.exits).filter(([,v])=>v===dest).sort((a,b)=>a[0].length-b[0].length)[0][0];
+      exitLines.push(sh+' - '+ROOMS[dest].name);}
+  });
+  op('Exits: '+exitLines.join(', ')+'.','exits');
+  if(isNew&&G.location!=='dressing_room')addScore(3,'explored '+room.name);
+  endChunk();
+}
+
+/* ── COMMAND IMPLEMENTATIONS ── */
+function cmdLook(){descRoom(true);}
+
+function revealCordelia(){
+  if(G.flags.knows_vane_hiding)return;
+  op('','system');
+  op('As you straighten up, a small movement in the corner of the room makes you turn.','system');
+  op('She is there. She has been there all along: Cordelia Vane, folded into the far end of the chaise in a dressing gown, scrubbed bare of make-up, watching you with enormous frightened eyes. She was never missing. She was hiding - in the one room nobody would think to look for a vanished woman: her own.','npc');
+  op('"Well," she says softly. "You found me. I suppose you\'d better come in properly. And talk to me, since you\'re here. Everyone else has given up on me tonight - even me."','npc');
+  G.flags.knows_vane_hiding=true;
+  /* she's now revealed and ready to be talked to - skip the separate greet */
+  if(NPCS.vane){NPCS.vane.spoken=true;NPCS.vane.greetIdx=NPCS.vane.greet.length;}
+  addScore(6,'discovered Cordelia Vane in hiding');
+}
+function handleItemExamineEffects(iid){
+  if(iid==='electrical_drawer'&&!G.flags.fuse_seen){G.flags.fuse_seen=true;}
+  if(iid==='locked_costume'&&!G.flags.costume_seen){G.flags.costume_seen=true;}
+  /* examining the note / chaise / table in the diva room reveals Cordelia */
+  if(G.location==='diva_room'&&!G.flags.knows_vane_hiding&&
+     (iid==='half_note'||iid==='star_chaise'||iid==='vane_photos'||iid==='locked_costume')){
+    revealCordelia();
+  }
+}
+function handleFeatExamineEffects(fk){
+  /* In the diva room: examining the note / chaise / photos / table reveals Cordelia */
+  if(G.location==='diva_room'&&!G.flags.knows_vane_hiding&&
+     (inc(fk,'note')||inc(fk,'chaise')||inc(fk,'dressing table')||inc(fk,'photo')||inc(fk,'costume')||inc(fk,'gown')||inc(fk,'rail'))){
+    revealCordelia();
+  }
+}
+
+function cmdExamine(target){
+  startChunk();
+  const nid=findNPC(target);
+  if(nid){const ex=NPCS[nid].examine;op(typeof ex==='function'?ex():ex);endChunk();return;}
+  const allItems=findItemAll(target).filter(function(id){return inScope(id);});
+  const allFeats=findFeatAll(target,G.location);
+  if(needsDisambig(allItems,allFeats)){
+    endChunk();showDisambig(makeDisambigChoices('examine',allItems,allFeats));return;
+  }
+  const iid=allItems[0]||null;
+  if(iid&&inScope(iid)){
+    const it=ITEMS[iid];const d=typeof it.desc==='function'?it.desc():it.desc;
+    d.split('\n').forEach(l=>op(l));handleItemExamineEffects(iid);endChunk();return;
+  }
+  const fk=allFeats[0]||null;
+  if(fk){
+    const fv=ROOMS[G.location].feats[fk];const ft=typeof fv==='function'?fv():fv;
+    ft.split('\n').forEach(l=>op(l));handleFeatExamineEffects(fk);endChunk();return;
+  }
+  const t=target.toLowerCase();
+  if(inc(t,'self')||inc(t,'myself')||t==='me'||t==='posy'||t==='understudy'){
+    op('You are Posy Trundle: understudy, thirty-nine, with a good memory for lines and a bad memory for being chosen. Three seasons you\'ve sat in the cupboard in your grey frock, word-perfect, while Cordelia Vane went on and on and on. You have a stick of greasepaint worn to a nub, a rabbit\'s foot that has never worked, and - tonight, for the first time - the distinct and terrifying possibility of a stage.');
+    op('Your stomach feels like the inside of a tumble dryer. This, the old hands say, is exactly how it should feel.','system');
+    endChunk();return;
+  }
+  if(inc(t,'time')||inc(t,'clock')||inc(t,'curtain')){
+    op('There is no clock backstage you can see, but you can feel the time the way you feel weather coming: the audience settling, the orchestra finishing its tuning, the particular thickening of the air that means curtain-up is minutes off. Not long. Not long at all.','system');endChunk();return;
+  }
+  if(inc(t,'pemberton')||inc(t,'cat')||inc(t,'mascot')){
+    if(G.inv.includes('mascot')){op('Mr Pemberton rides in the crook of your arm, lopsided and serene, his one green glass eye and one button eye surveying the building he has watched over since 1931.','system');}
+    else op('Mr Pemberton, the stuffed mascot cat, isn\'t with you - he\'s shut in the prop store, which is the whole trouble. The Director cannot raise the curtain without his luck on its cushion in the wings.','system');
+    endChunk();return;
+  }
+  op('You see nothing like that to examine here - or it isn\'t here.','error');endChunk();
+}
+
+function cmdTake(target){
+  startChunk();
+  const nid=findNPC(target);if(nid){op(NPCS[nid].take,'npc');endChunk();return;}
+  const f=target.toLowerCase();
+  /* fixed-scenery quick refusals handled via item take_resp below; environment catch-alls: */
+  const envTake={
+    audience:'You cannot pocket eight hundred people, however much you might like to take them somewhere quiet and explain the situation.',
+    seats:'The seats are bolted down and full of paying customers. Both facts discourage removal.',
+    floor:'The stage floor is sacred and also nailed down.',
+    boards:'The boards stay. You tread them; you don\'t take them.',
+    wall:'The architecture is not for taking.',
+    light:'The lights are wired into the building. What they need is a fuse, not a thief.',
+    pigeon:'The theatre pigeon regards your outstretched hand with contempt and does not move. It has outlasted better people than you.',
+  };
+  for(const[key,resp] of Object.entries(envTake)){const kre=new RegExp('\\b'+key+'\\b');if(kre.test(f)){op(resp,'error');endChunk();return;}}
+  /* disambiguation among takeable items */
+  var ff2=f.split(/\s+/).filter(function(w){return w.length>2;});
+  const takeablePool=roomItems(G.location).filter(function(id){return !G.inv.includes(id)&&!ITEMS[id].fixed;});
+  var takeMatches=takeablePool.filter(function(id){
+    var n=ITEMS[id].name.toLowerCase();
+    return n===f||n.includes(f)||ff2.some(function(w){return n.includes(w);});
+  });
+  if(takeMatches.length>1){endChunk();showDisambig(makeDisambigChoices('take',takeMatches,[]));return;}
+  const pool=roomItems(G.location).filter(function(id){return !G.inv.includes(id);});
+  var found=pool.find(function(id){return ITEMS[id].name.toLowerCase()===f;});
+  if(!found)found=pool.find(function(id){var n=ITEMS[id].name.toLowerCase();return n.includes(f)||ff2.every(function(w){return n.includes(w);});});
+  if(!found){
+    const carried=G.inv.find(function(id){var n=ITEMS[id].name.toLowerCase();return n.includes(f)||ff2.every(function(w){return n.includes(w);});});
+    if(carried){op('You\'re already carrying '+itemArt(carried)+'.','system');endChunk();return;}
+    /* fixed-feature refusal: if it matches a feat, give a take-ish nudge */
+    const fk=findFeat(f,G.location);
+    if(fk){op('You can\'t pocket that. Examine it for a closer look, or look for something you can actually pick up.','error');endChunk();return;}
+    op('You don\'t see anything like that here to pick up.','error');endChunk();return;
+  }
+  const it=ITEMS[found];
+  if(it.fixed){op(it.take_resp||'It\'s firmly fixed in place.','error');endChunk();return;}
+  G.inv.push(found);ITEMS[found].room=null;
+  op('You take '+itemArt(found)+'.','success');
+  upStatus();endChunk();
+}
+
+function cmdDrop(target){
+  startChunk();const f=target.toLowerCase();const fw=f.split(/\s+/).filter(w=>w.length>2);
+  const idx=G.inv.findIndex(id=>{const n=ITEMS[id].name.toLowerCase();return n.includes(f)||fw.every(w=>n.includes(w));});
+  if(idx<0){op('You\'re not carrying anything like that.','error');endChunk();return;}
+  const id=G.inv[idx];
+  if(['ruined_script','the_book','mascot','spare_fuse','threader','milk','cocoa','prop_key'].includes(id)){
+    op('You\'d better hang on to that - it\'s the kind of thing you\'ll want tonight.','system');endChunk();return;
+  }
+  G.inv.splice(idx,1);ITEMS[id].room=G.location;
+  op('You set down '+itemArt(id)+'.');upStatus();endChunk();
+}
+
+function cmdInventory(){
+  startChunk('What you are carrying');
+  if(!G.inv.length){op('Your pockets are empty, which for an understudy is at least familiar.','system');endChunk();return;}
+  G.inv.forEach(id=>op('  '+(ITEMS[id].art?ITEMS[id].art.charAt(0).toUpperCase()+ITEMS[id].art.slice(1)+' ':'')+ITEMS[id].name));
+  endChunk();
+}
+
+function cmdExits(){
+  startChunk('Exits from here');const room=ROOMS[G.location];const seen=new Set();
+  Object.entries(room.exits).forEach(([dir,dest])=>{
+    if(!seen.has(dest)&&ROOMS[dest]){seen.add(dest);
+      const sh=Object.entries(room.exits).filter(([,v])=>v===dest).sort((a,b)=>a[0].length-b[0].length)[0][0];
+      op(sh+' - '+ROOMS[dest].name,'exits');}
+  });endChunk();
+}
+
+/* ── THE INTERLOCKING PUZZLE CHAIN ── */
+
+/* Step: fill + switch on the urn (green room) */
+function cmdFillUrn(){
+  startChunk();
+  if(G.location!=='green_room'){op('There\'s no urn here. The tea urn lives in the green room.','error');endChunk();return;}
+  if(G.flags.cocoa_made){op('You\'ve already made the cocoa. The urn has done its work for the night.','system');endChunk();return;}
+  if(G.flags.urn_filled){op('The urn is already filled and heating. What it wants now is the cocoa-making - the tin\'s on the shelf, but you\'ll need milk before it\'s worth a thing.','system');endChunk();return;}
+  op('You haul the urn lid open, fill it from the green-room tap until it\'s good and full, drop the lid, and find the switch.');
+  op('It shudders, ticks, and begins - with the slow grandeur of a great ship leaving harbour - to heat.','success');
+  op('Now: cocoa powder (on the shelf), hot water (coming), and milk. Find some milk and you can make the cocoa itself.','system');
+  G.flags.urn_filled=true;addScore(5,'resurrected the green-room urn');
+  upStatus();endChunk();
+}
+
+/* Step: make the cocoa (needs urn filled + milk) */
+function cmdMakeCocoa(){
+  startChunk();
+  if(G.location!=='green_room'){op('You make cocoa at the urn, and the urn\'s in the green room.','error');endChunk();return;}
+  if(G.inv.includes('cocoa')||G.flags.cocoa_made){op('You\'ve already got a steaming mug of cocoa made. Albert\'s waiting for it.','system');endChunk();return;}
+  if(!G.flags.urn_filled){op('The urn\'s cold and empty. Fill it and switch it on first - try FILL URN.','error');endChunk();return;}
+  if(!G.inv.includes('milk')){op('You\'ve got the urn heating and the cocoa tin to hand, but no milk - and Albert was very clear that black cocoa is "a punishment, not a treat". You need a drop of milk. The box office has the only milk in the building.','error');endChunk();return;}
+  op('The urn has come to the boil. You spoon cocoa from the tin into the WORLD\'S OKAYEST STAGEHAND mug, draw off a measure of scalding water, and add a generous slug of Brenda\'s milk.');
+  op('You stir. It is, even by the standards of a building that runs on tea, a magnificent mug of cocoa.','success');
+  G.inv=G.inv.filter(id=>id!=='milk');ITEMS.milk.room=null;
+  G.inv.push('cocoa');ITEMS.cocoa.room=null;G.flags.cocoa_made=true;
+  op('You now have a mug of cocoa - the single most powerful bargaining chip in the building.','items');
+  addScore(8,'made the keeper\'s cocoa');upStatus();endChunk();
+}
+
+/* Step: fit the fuse (lighting box) */
+function cmdFitFuse(){
+  startChunk();
+  if(G.location!=='lighting_box'){op('There\'s nothing to fit a fuse into here. The dead board is up in the lighting box.','error');endChunk();return;}
+  if(G.flags.lights_fixed){op('The board\'s already fixed - the new fuse is in and the rig is alive. Save the rest for the show.','system');endChunk();return;}
+  if(!G.inv.includes('spare_fuse')){op('The fuse holder gapes empty, but you haven\'t got a spare fuse to put in it. There was one in the prop store\'s electrical drawer.','error');endChunk();return;}
+  op('You ease the cover off the lighting board, line up the chunky ceramic fuse, and press it home into the empty holder.');
+  op('There is a deep, satisfying THUNK from somewhere in the building\'s bones. Indicator lights bloom across the board. Down on the stage, through the gallery window, the half-light swells all at once into honest, blazing gold.','success');
+  G.inv=G.inv.filter(id=>id!=='spare_fuse');ITEMS.spare_fuse.room=null;
+  G.flags.lights_fixed=true;addScore(12,'brought the stage lights back to life');
+  op('The stage is lit. That\'s the lights sorted.','system');
+  if(!(G.flags.has_book&&G.flags.has_costume))op('Lines and costume - whatever\'s still outstanding - remain.','system');
+  upStatus();checkShowReady();endChunk();
+}
+
+/* Step: open the locked costume rail (diva room) — needs Mrs Tassel's blessing, i.e. threader returned */
+function cmdPickCostume(){
+  startChunk();
+  if(G.location!=='diva_room'){op('The locked costume is in Miss Vane\'s dressing room.','error');endChunk();return;}
+  if(G.flags.has_costume){op('You\'re already wearing the gown - Mrs Tassel saw to that. No need to pick any locks now.','system');endChunk();return;}
+  if(!G.flags.knows_vane_hiding){op('It feels wrong to start forcing locks in here while the leading lady is missing. Have a proper look round the room first - something doesn\'t add up.','error');endChunk();return;}
+  if(!G.flags.vane_blessing){op('You could force the little rail lock with your safety pin - but this is Cordelia\'s gown, and Cordelia is sitting right there. Forcing it past her would be a low thing to do. Talk to her first. She may yet give it freely.','error');endChunk();return;}
+  if(!G.flags.threader_returned){op('Cordelia\'s given her blessing, but you promised Mrs Tassel you\'d not butcher one of her costumes unsupervised - and the gown needs taking in to fit you anyway. Get Mrs Tassel her needle-threader so she can do the job properly.','error');endChunk();return;}
+  /* Got blessing + threader returned: go to wardrobe to be dressed */
+  op('You free the gown from the locked rail with a deft twist of the safety pin - Mrs Tassel showed you the trick - and gather the midnight-blue silk over your arm. It\'s far too big for you as it stands. Time to get to Wardrobe and have it taken in.','success');
+  G.flags.costume_freed=true;addScore(6,'freed the star costume');
+  op('Take the gown to Mrs Tassel in the wardrobe to be dressed. Try GET DRESSED there, or just talk to her.','system');
+  upStatus();endChunk();
+}
+
+/* Step: get dressed (wardrobe) — final assembly of the costume thread */
+function cmdGetDressed(){
+  startChunk();
+  if(G.location!=='wardrobe'){op('Mrs Tassel does the dressing, and Mrs Tassel\'s in the wardrobe.','error');endChunk();return;}
+  if(G.flags.has_costume){op('You\'re already dressed, love, and looking the part. Get to the stage.','system');endChunk();return;}
+  if(!G.flags.costume_freed){
+    if(!G.flags.vane_blessing){op('You\'ve nothing for Mrs Tassel to fit you into yet - the gown\'s still locked in Cordelia\'s room, and you\'ll want Cordelia\'s say-so before you touch it.','error');endChunk();return;}
+    op('You\'ve Cordelia\'s blessing, but the gown\'s still on its locked rail in her room. Free it first - your safety pin and the trick Mrs Tassel taught you should do it.','error');endChunk();return;
+  }
+  if(!G.flags.threader_returned){op('Mrs Tassel takes the gown, reaches for her needle - and stops. "I still can\'t thread the blessed thing, love. My threader." Right. First things first.','error');endChunk();return;}
+  op('Mrs Tassel takes the midnight-blue gown reverently, clucks over the fit, and goes to work: three pins, two tucks, a flashing needle (threaded, at last, with her recovered silver friend), and a great deal of muttering about "the state of the hem".');
+  op('"There," she says, stepping back, her eyes suddenly bright. "Oh, love. Look at you. You look like the leading lady. Because tonight you ARE." She blows her nose loudly. "Cordelia said I\'d cry. Don\'t tell her she was right."','npc');
+  op('You catch yourself in the wardrobe mirror: gowned, transformed, unmistakably the mistress of the house. The grey understudy is gone.','success');
+  G.flags.has_costume=true;addScore(10,'were dressed for the part by Mrs Tassel');
+  checkShowReady();
+  upStatus();endChunk();
+}
+
+function cmdUse(raw){
+  startChunk();const lo=raw.toLowerCase();
+  /* urn fill */
+  if((inc(lo,'urn')&&(inc(lo,'fill')||inc(lo,'water')||inc(lo,'switch')||inc(lo,'turn on')||inc(lo,'boil')))||
+     (inc(lo,'fill')&&inc(lo,'water'))){endChunk();cmdFillUrn();return;}
+  /* cocoa make */
+  if((inc(lo,'cocoa')&&(inc(lo,'make')||inc(lo,'mug')||inc(lo,'milk')||inc(lo,'urn')))||
+     (inc(lo,'make')&&inc(lo,'drink'))){endChunk();cmdMakeCocoa();return;}
+  /* fuse fit */
+  if(inc(lo,'fuse')||(inc(lo,'fix')&&(inc(lo,'board')||inc(lo,'light')))){endChunk();cmdFitFuse();return;}
+  /* costume pin trick */
+  if((inc(lo,'pin')&&(inc(lo,'lock')||inc(lo,'rail')||inc(lo,'costume')||inc(lo,'gown')))||
+     (inc(lo,'pick')&&(inc(lo,'lock')||inc(lo,'rail')))||
+     (inc(lo,'force')&&(inc(lo,'lock')||inc(lo,'rail')||inc(lo,'costume')))){endChunk();cmdPickCostume();return;}
+  /* give cocoa to albert / milk dependency handled via give */
+  if(inc(lo,'cocoa')&&G.location==='stage_door'){endChunk();cmdGiveCocoa();return;}
+  /* flavour item uses */
+  const flavourUses={
+    'rabbit':ITEMS.rabbits_foot.use_resp,"rabbit's foot":ITEMS.rabbits_foot.use_resp,foot:ITEMS.rabbits_foot.use_resp,
+    greasepaint:ITEMS.greasepaint.use_resp,'make up':ITEMS.greasepaint.use_resp,makeup:ITEMS.greasepaint.use_resp,
+    pin:ITEMS.safety_pin.use_resp,'safety pin':ITEMS.safety_pin.use_resp,
+    script:'You can\'t perform from this script - Act Three is a tea-stained brick. You need the Director\'s Book.'};
+  for(const[key,resp] of Object.entries(flavourUses)){if(inc(lo,key)&&resp){op(resp,'system');endChunk();return;}}
+  op('You\'re not sure how to use that here - or something\'s missing from the equation. Type HINT if you\'re stuck.','error');endChunk();
+}
+
+/* ── NPC TRADES ── */
+function cmdGiveCocoa(){
+  startChunk('Albert');
+  if(G.location!=='stage_door'){op('Albert\'s at the stage door.','error');endChunk();return;}
+  if(G.flags.has_prop_key){op('Albert\'s already got his cocoa and you\'ve already got the key. He gives you a companionable nod over the rim of his mug.','npc');endChunk();return;}
+  if(!G.inv.includes('cocoa')){op('Albert eyes your empty hands. "When you\'ve a hot cocoa for me, made proper with milk, the prop-store key\'s yours. Not before." He returns to the 3:40.','npc');endChunk();return;}
+  ohr();
+  op('You set the steaming mug on Albert\'s counter. He looks at it. He looks at you. He picks it up with the reverence of a man receiving a sacrament, takes a long pull, and closes his eyes.');
+  op('"...That," he says at length, "is a proper cocoa." For one astonishing moment Albert the stage-door keeper looks almost happy. Then, gruffly, to cover it, he reaches up to the board, lifts the central key off its hook, and presses it into your hand. "Prop store. Signed for. Don\'t lose it - I mean it - and bring it back, and -" he hesitates "- thank you, lass. First decent thing anyone\'s done me all night."','npc');
+  ohr();
+  G.inv=G.inv.filter(id=>id!=='cocoa');ITEMS.cocoa.room=null;
+  G.inv.push('prop_key');ITEMS.prop_key.room=null;G.flags.has_prop_key=true;
+  op('You now have the prop-store key. The prop store is off the corridor - and inside it are at least three things you\'re going to need.','items');
+  addScore(8,'won the prop-store key from Albert');upStatus();endChunk();
+}
+function cmdGiveThreader(){
+  startChunk('Mrs Tassel');
+  op('You hold out the little silver needle-threader. Mrs Tassel actually gasps. "My LADY! Oh, you marvel, where was she?" She snatches it, kisses it - kisses it - and threads her needle in one triumphant motion. "Right. NOW we\'re in business."','npc');
+  op('"You bring me Cordelia\'s gown - free it off that rail, the pin-trick, mind, don\'t force it like a burglar - and I\'ll have it taken in to fit you before you can say first-night nerves. And -" she taps her nose "- I\'ll show you the trick of that little lock myself, so you don\'t go wrecking the rail. Off you go."','npc');
+  G.inv=G.inv.filter(id=>id!=='threader');ITEMS.threader.room=null;G.flags.threader_returned=true;
+  addScore(7,'returned Mrs Tassel\'s needle-threader');upStatus();endChunk();
+}
+function cmdGiveMilk(){
+  /* This is actually Brenda GIVING you milk after you help her; kept for symmetry if player tries giving milk */
+  op('The milk\'s for the keeper\'s cocoa, not for giving away. Get it to the green-room urn.','system');
+}
+function cmdGiveMascot(){
+  startChunk('Mr Bellweather');
+  op('You hold out Mr Pemberton. The Director looks up. His face does something complicated.');
+  op('"Pemberton," he whispers. He takes the moth-eaten cat in both hands as if it were the Turin Shroud, presses it briefly to his chest, then sets it tenderly on the cushion in the wings where it has sat for every opening since 1931. "There. THERE. Oh, you good and faithful animal." He turns to you, and something has come back into him - some of the old grandeur, some of the old nerve. "If Pemberton\'s back," he says, "then the luck\'s back, and if the luck\'s back, then by God we have a SHOW." ','npc');
+  op('He looks at the Book clutched in his hand as though noticing it for the first time, and holds it out to you. "Act Three\'s all there. Every line, every move. Learn it on your feet - you\'ve got minutes, not hours. You can do this. I directed your audition three years ago, you know. I always said they should have - well. Never mind what I said. GO."','npc');
+  G.inv=G.inv.filter(id=>id!=='mascot');ITEMS.mascot.room=null;
+  G.inv.push('the_book');ITEMS.the_book.room=null;G.flags.has_book=true;
+  op('You now have the Director\'s Book - and with it, finally, the whole of Act Three. You know the part.','items');
+  addScore(10,'returned Mr Pemberton and won the Book');
+  checkShowReady();upStatus();endChunk();
+}
+
+function cmdGive(raw){
+  startChunk();const lo=raw.toLowerCase();
+  if(G.location==='stage_door'&&(inc(lo,'cocoa')||inc(lo,'mug')||inc(lo,'drink')||inc(lo,'albert'))){endChunk();cmdGiveCocoa();return;}
+  if(G.location==='wardrobe'&&(inc(lo,'threader')||inc(lo,'tassel'))&&G.inv.includes('threader')){endChunk();cmdGiveThreader();return;}
+  if(G.location==='director_office'&&(inc(lo,'pemberton')||inc(lo,'cat')||inc(lo,'mascot')||inc(lo,'bellweather'))&&G.inv.includes('mascot')){endChunk();cmdGiveMascot();return;}
+  op('Nobody here wants that from you just now.','system');endChunk();
+}
+
+function cmdTalk(target){
+  startChunk();
+  /* In the diva room, attempting to talk (to Cordelia, or to the seemingly empty room) finds her */
+  if(G.location==='diva_room'&&!G.flags.knows_vane_hiding){
+    revealCordelia();endChunk();return;
+  }
+  let nid=findNPC(target)||(ROOMS[G.location].npcs||[]).find(n=>n!=='vane'||G.flags.knows_vane_hiding)||null;
+  if(G.location==='diva_room'&&G.flags.knows_vane_hiding)nid='vane';
+  if(!nid){op('There\'s nobody here to talk to.','error');endChunk();return;}
+  const npc=NPCS[nid];
+  if(!npc.rooms.includes(G.location)){op(npc.name+' isn\'t here.','error');endChunk();return;}
+  if(npc.wandered){op(npc.wander_off,'npc');endChunk();return;}
+
+  /* greet phase */
+  if(!npc.spoken){
+    const gi=npc.greetIdx||0;op(npc.greet[gi],'npc');npc.greetIdx=gi+1;
+    if(npc.greetIdx>=npc.greet.length)npc.spoken=true;
+    /* first-greet plot reveals */
+    if(nid==='wardrobe'&&!G.flags.tassel_briefed){G.flags.tassel_briefed=true;}
+    endChunk();return;
+  }
+
+  /* talk phase — resolve dynamic talk arrays + sentinels */
+  let arr=typeof npc.talk==='function'?npc.talk():npc.talk;
+
+  /* sentinels that trigger trades / state changes */
+  if(arr==='__GIVE_MASCOT__'){endChunk();cmdGiveMascot();return;}
+  if(arr==='__GIVE_THREADER__'){endChunk();cmdGiveThreader();return;}
+  if(arr==='__DRESS_PROMPT__'){
+    op('"You\'ve got my threader back, bless you," says Mrs Tassel, "so I\'m ready when you are. Bring me Cordelia\'s gown - freed off that rail nice and gentle - and I\'ll dress you. Try GET DRESSED once you\'ve got it."','npc');
+    endChunk();return;
+  }
+  if(arr==='__GIVE_MILK__'){
+    op('"You read me those numbers a treat," says Brenda, already happier. "Here - the milk, as promised. For the cocoa. I\'ll know if it\'s been up to anything." She hands you the bottle from the fridge.','npc');
+    G.inv.push('milk');ITEMS.milk.room=null;G.flags.has_milk=true;
+    addScore(6,'won the milk from Brenda');upStatus();endChunk();return;
+  }
+  if(!arr){op(npc.name+' has nothing to add right now.','npc');endChunk();return;}
+
+  /* Brenda: helping her read the plan happens on first talk-after-greet */
+  if(nid==='brenda'&&!G.flags.brenda_helped){
+    op('You take the seating plan, hold it at a sensible distance, and read the seat numbers off to her one by one - "Circle A, eleven through eighteen for your VIP party" - while she inks her little crosses, sagging with relief.','system');
+    op('"Oh, you STAR," says Brenda. "You\'ve saved my life. Here -" she opens the fridge "- the milk, as promised. For the cocoa, mind. Not for funny business." She presses the cold bottle into your hands.','npc');
+    G.flags.brenda_helped=true;G.inv.push('milk');ITEMS.milk.room=null;G.flags.has_milk=true;
+    addScore(6,'helped Brenda and won the milk');upStatus();endChunk();return;
+  }
+
+  /* Vane: the empathy arc; final stage grants blessing + brooch */
+  if(nid==='vane'){
+    const idx=npc.talkCount;
+    if(idx<arr.length){
+      op(arr[idx],'npc');npc.talkCount++;
+      if(idx===arr.length-1){
+        /* final beat: blessing + brooch */
+        G.flags.vane_blessing=true;
+        G.inv.push('brooch');ITEMS.brooch.room=null;
+        op('You now carry Cordelia Vane\'s paste-diamond brooch - her luck, freely given.','items');
+        addScore(12,'won Cordelia\'s blessing and her brooch');
+        npc.wandered=true;
+      }
+      endChunk();return;
+    }
+    op(npc.wander_off,'npc');npc.wandered=true;endChunk();return;
+  }
+
+  /* generic multi-stage talk */
+  if(npc.talkCount<arr.length){
+    op(arr[npc.talkCount],'npc');npc.talkCount++;
+    if(npc.talkCount>=arr.length&&['prompter','keeper','director'].indexOf(nid)<0){/* keep key NPCs available */}
+  }else{
+    op(arr[arr.length-1],'npc');
+  }
+  endChunk();
+}
+
+/* ── PROP STORE: taking the three key items ── */
+function takeFromPropStore(which){
+  startChunk();
+  if(which==='mascot'){
+    if(G.inv.includes('mascot')||ITEMS.mascot.room===null&&G.flags.has_book){op('You\'ve already got Mr Pemberton'+(G.flags.has_book?' safely delivered':'')+'.','system');endChunk();return;}
+    G.inv.push('mascot');ITEMS.mascot.room=null;
+    op('You lift Mr Pemberton down off his shelf. He is lighter than he looks and more dignified than he has any right to be. His one green glass eye regards you with ancient approval.','success');
+    op('Get him to the Director, quick - the man\'s falling apart without his luck.','system');
+    addScore(7,'rescued Mr Pemberton from the prop store');upStatus();endChunk();return;
+  }
+  if(which==='fuse'){
+    if(G.inv.includes('spare_fuse')||G.flags.fuse_taken){op('You\'ve already taken the spare fuse.','system');endChunk();return;}
+    G.inv.push('spare_fuse');ITEMS.spare_fuse.room=null;G.flags.fuse_taken=true;
+    op('You fish the chunky ceramic fuse out of the "ELECTRICAL - PROBABLY" drawer. Exactly the sort of thing a dead lighting board might be missing.','success');
+    addScore(5,'salvaged the spare fuse');upStatus();endChunk();return;
+  }
+  if(which==='threader'){
+    if(G.inv.includes('threader')||G.flags.threader_returned){op('You\'ve already found the needle-threader.','system');endChunk();return;}
+    G.inv.push('threader');ITEMS.threader.room=null;
+    op('There, glinting in a tray of buttons where it rolled and was lost: Mrs Tassel\'s silver needle-threader, the little lady\'s-head with its wire loop of hair. Found at last.','success');
+    op('Get it back to Mrs Tassel in the wardrobe and she\'ll be your friend for life.','system');
+    addScore(6,'found the lost needle-threader');upStatus();endChunk();return;
+  }
+}
+
+/* ── SHOW-READY + WIN ── */
+function checkShowReady(){
+  if(G.flags.has_book&&G.flags.has_costume&&G.flags.lights_fixed&&!G.flags.show_ready){
+    G.flags.show_ready=true;
+    setTimeout(function(){
+      startChunk('"Beginners, please."');
+      op('Over the tannoy, the Stage Manager\'s voice, taut as a wire: "Beginners to the stage, please. Beginners." ','npc');
+      op('And, against every expectation of the evening, you are ready to answer it.','system');
+      op('You know the lines (the Book). You are dressed for the part (the gown). The stage is lit (the board lives). Mr Pemberton sits on his cushion in the wings; Cordelia\'s brooch is pinned over your hammering heart.','system');
+      op('There is only one thing left to do. Go to the stage, take your place, and let the curtain rise.','success');
+      upStatus();endChunk();
+    },120);
+  }
+}
+
+function doWin(){
+  G.flags.show_complete=true;
+  startChunk('The Show Must Go On');ohr();
+  op('You walk out of the wings and onto the lit stage, and take your mark by the chaise. Behind the great red curtain, eight hundred strangers breathe in the dark.');
+  op('In the prompt corner, Miss Quill lifts her head. On the lighting board, the follow-spot finds you and holds. On his cushion, Mr Pemberton watches with his one green eye. Somewhere in the building, a frightened woman who was once the bravest in it is listening with her whole heart.','system');
+  op('The cue-light goes from red to green.','npc');
+  ohr();
+  op('The curtain rises.','success');
+  op('The light hits you like warm water. For one endless held breath the part you have carried in silence for three seasons is finally, wholly yours - and then you open your mouth, and the first line comes out clear and true and exactly on the breath, and it is the easiest thing in the world.','system');
+  op('You deliver the line about the weather. You wait half a beat longer than feels safe - Cordelia\'s trick - and the laugh comes, eight hundred strong, rolling up out of the dark and breaking over the footlights like the sea finally coming in.','success');
+  ohr();
+  op('And somewhere at the back of the circle, unseen, a woman in a hastily-thrown-on coat hears that laugh, and smiles, and slips out into the night knowing the show went on - and that she helped it.','system');
+  op('You are no longer the understudy.','success');
+  op('You never were, really. You were only ever the next one up.','system');
+  ohr();
+  op('THE SHOW MUST GO ON','success');ohr();
+  addScore(15,'gave the performance of a lifetime');
+  op('Final score: '+G.score+' / '+MAXSCORE+' in '+G.turns+' turns.','score');
+  op('Type RESTART to take it from the top.','system');
+  G.gameOver=true;upStatus();endChunk();
+}
+
+/* ── MOVEMENT (prop store is gated behind the key) ── */
+function cmdMove(dest){
+  if(dest==='prop_store'){
+    if(!G.flags.has_prop_key){
+      startChunk();
+      op('The prop-store door is locked - a heavy old thing with a heavy old lock. You\'ll need the key, and the key is on Albert\'s board at the stage door. He won\'t part with it for nothing, mind.','error');endChunk();return;
+    }
+    if(!G.flags.prop_store_opened){
+      G.flags.prop_store_opened=true;
+      ITEMS.mascot.room='prop_store';ITEMS.spare_fuse.room='prop_store';ITEMS.threader.room='prop_store';
+      addScore(4,'unlocked the prop store');
+    }
+  }
+  G.location=dest;descRoom(false);
+}
+
+function cmdHelp(){
+  startChunk('Commands');
+  op('Some of the commands you can give. But half the joy is just trying something and seeing what happens.','system');
+  [['LOOK (L)','Describe where you are.'],['EXAMINE <thing> (X)','Look closely at any item, person, or feature.'],
+   ['TAKE <item>','Pick something up.'],['DROP <item>','Put something down.'],
+   ['INVENTORY (I)','List what you\'re carrying.'],['GO <direction>','Move. N, S, E, W, UP, DOWN, or natural phrases like GO TO STAGE DOOR.'],
+   ['EXITS','List the ways out of here.'],['WHERE AM I','Your location and exits.'],
+   ['USE <thing> / FILL URN / MAKE COCOA','Use, combine, or operate things.'],
+   ['FIT FUSE / GET DRESSED','Solve specific puzzle steps.'],
+   ['TALK TO <person>','Speak to someone. Always worth doing more than once.'],
+   ['GIVE <item> TO <person>','Hand something over.'],
+   ['LOOK IN / LOOK UNDER <thing>','Peer into or under things.'],
+   ['REPEAT (R)','Repeat the last output.'],['LOAD','Reload your saved game.'],
+   ['RESTART','Begin again.'],['SCORE','Your current score.'],
+   ['THINK','Recall what you know and what\'s left to do.'],['HINT','A nudge when you\'re stuck.'],['HELP','This list.']
+  ].forEach(function(p){op(p[0]+' - '+p[1]);});
+  op('Progress saves automatically after every command.','system');
+  op('Tip: examine everything, talk to everyone (twice), and remember the order: lines, costume, lights.','system');
+  endChunk();
+}
+
+function cmdThink(){
+  startChunk('What you know so far');
+  op('It is minutes to curtain. The house is full, the leading lady has vanished, and you - Posy Trundle, understudy - are the only one who can go on. To do it you must pull three things together: KNOW THE PART, be DRESSED for it, and get the STAGE LIT.');
+  ohr();
+  /* lines thread */
+  if(G.flags.has_book)op('✓ LINES: You have the Director\'s Book. You know the whole part, Act Three and all.','success');
+  else op('✗ LINES: Your script\'s Act Three is ruined. The Director has the only whole copy (the Book) but won\'t give it up until he\'s calmed down - and he won\'t calm down until his mascot, Mr Pemberton, is back from the locked prop store.','system');
+  /* costume thread */
+  if(G.flags.has_costume)op('✓ COSTUME: You\'re in the gown, taken in to fit. You look the part.','success');
+  else op('✗ COSTUME: The star gown is locked in Miss Vane\'s room. You\'ll want her blessing to take it, and Mrs Tassel - who needs her lost needle-threader back - to fit it to you.','system');
+  /* lights thread */
+  if(G.flags.lights_fixed)op('✓ LIGHTS: The board\'s fixed and the stage blazes.','success');
+  else op('✗ LIGHTS: The main lighting board is dead - it needs a fuse. There\'s a spare in the prop store\'s electrical drawer.','system');
+  ohr();
+  if(!G.flags.has_prop_key)op('Almost everything runs through the locked PROP STORE (mascot, fuse, threader). Albert has the key - and wants a hot cocoa for it. The cocoa needs the green-room urn working and a drop of milk from the box office.','system');
+  else op('You\'ve got the prop-store key - the linchpin. Inside are Mr Pemberton, the spare fuse, and the needle-threader.','system');
+  if(G.flags.show_ready)op('Everything\'s ready. Get to the stage and let the curtain rise.','success');
+  endChunk();
+}
+
+/* Has the player engaged with the current room yet? (talked to its NPC, or it has no NPC and
+   they've examined something / been here a moment). Used to decide gentle vs specific hints. */
+function npcHereUnspoken(){
+  return (ROOMS[G.location].npcs||[]).some(function(nid){
+    if(nid==='vane'&&!G.flags.knows_vane_hiding)return G.location==='diva_room'; /* hidden NPC counts */
+    return NPCS[nid]&&!NPCS[nid].wandered&&!NPCS[nid].spoken;
+  });
+}
+/* Gentle, room-local nudges that DON'T reveal the downstream chain. Returned when the player
+   asks for a hint somewhere they haven't really worked yet. */
+function localNudge(){
+  /* If someone's here you haven't really spoken to, that's always the local steer. */
+  if(npcHereUnspoken()){
+    if(G.location==='diva_room'&&!G.flags.knows_vane_hiding)
+      return 'This is the leading lady\'s room and she\'s the one who\'s "vanished". Something doesn\'t add up in here. EXAMINE the things on the dressing table - and try TALKing, even to an apparently empty room.';
+    return 'There\'s someone here. In a theatre full of people who all want something, the fastest way forward is usually to TALK TO them (and often more than once). See what they need.';
+  }
+  var n={
+    dressing_room:'Start by getting yourself together. EXAMINE the things around you - the mirror, the script, the frock - and put your face on (try MAKE UP at the mirror; it steadies the nerves, and earns its keep). Then it\'s out into the building to see who needs what. (Type THINK any time for the big picture.)',
+    corridor:'This corridor is the spine of the building - every door opens off it. Type EXITS to see them all, then go and meet people: the green room, the wardrobe, the box office, the stage door. Someone always needs something.',
+    green_room:'The green room runs on hot drinks. EXAMINE the tea urn - getting it going feels like the sort of thing that earns goodwill from somebody.',
+    wardrobe:'Wardrobe is where you\'ll be made to look the part. Talk to Mrs Tassel and EXAMINE her sewing things - she seems to be missing something small.',
+    stage_door:'Albert guards the keys. EXAMINE the key board to see what\'s locked away, and TALK TO him - though he strikes you as a man who does favours only for favours.',
+    box_office:'Brenda\'s drowning in tickets and tiny print. TALK TO her - help her out and she may help you.',
+    prompt_corner:'You\'re in the wings now. TALK TO Miss Quill, the prompter - she misses nothing and says the quiet part out loud.',
+    wings:'Scenery, ropes, and a way UP to the lighting box. Have a look around - EXAMINE the things here - and note the ladder for later.',
+    stage:'This is where it all has to happen. EXAMINE the footlights and the auditorium - you\'ll get a sense of what still isn\'t right about the stage.',
+    lighting_box:'The lighting board up here is the heart of the problem. EXAMINE it closely to see what it\'s missing.',
+    director_office:'The Director has something you need but won\'t let go of it while he\'s in pieces. TALK TO him to find out what would calm him down.',
+    diva_room:'Have a proper look around - EXAMINE the dressing table and the note - and try TALKing. The leading lady may be closer than the official story suggests.',
+    prop_store:'This is the building\'s junk-drawer of treasures. EXAMINE the shelves and that electrical drawer - there are at least three useful things in here if you look.'
+  };
+  return n[G.location]||'Have a good look around - EXAMINE things and TALK to anyone here. Type THINK for the bigger picture.';
+}
+/* How many rooms has the player explored? Used to gate the strategic spoiler. */
+function exploredEnough(){return G.visited.size>=4;}
+
+function cmdHint(){
+  startChunk('Hint');
+  /* Endgame */
+  if(G.flags.show_ready){
+    if(G.location==='stage')op('You\'re on the lit stage, dressed, word-perfect, the brooch over your heart. There is nothing left to fetch. Take your place - try TAKE MARK, or just LOOK and let it happen.','system');
+    else op('Lines, costume, lights - all done. Beginners have been called. Get to the STAGE (through the prompt corner) and take your place.','system');
+    endChunk();return;
+  }
+  /* TIER 1 — gentle, room-local nudge if you're somewhere with unfinished local business
+     (someone to talk to, or things to examine), OR you've barely started exploring.
+     This avoids dumping the whole chain on a player who just wants to know what to do HERE. */
+  var localBusiness=npcHereUnspoken()||
+    (G.location==='green_room'&&!G.flags.urn_filled)||
+    (G.location==='lighting_box'&&!G.flags.lights_fixed&&!G.inv.includes('spare_fuse'))||
+    (G.location==='prop_store'&&G.flags.has_prop_key&&!(G.inv.includes('mascot')||G.inv.includes('spare_fuse')||G.inv.includes('threader')))||
+    (G.location==='diva_room'&&!G.flags.knows_vane_hiding);
+  if(localBusiness||!exploredEnough()){
+    op(localNudge(),'system');
+    op('(Still stuck? Type HINT again once you\'ve had a look around, and I\'ll be more specific. THINK shows the whole picture.)','system');
+    endChunk();return;
+  }
+  /* TIER 2 — you've explored a fair bit and there's nothing obvious to do where you stand:
+     point you at the specific next mechanical step in the dependency chain. */
+  const haveKey=G.flags.has_prop_key;
+  /* 1. Cocoa sub-chain to get the key */
+  if(!haveKey){
+    if(!G.flags.brenda_helped&&!G.inv.includes('milk')){
+      op('Your next concrete step: the locked prop store holds most of what you need, and Albert will trade its key for a hot cocoa. The cocoa needs milk - and Brenda in the BOX OFFICE has the only milk, if you help her read her seating plan. Go and TALK TO BRENDA.','system');endChunk();return;
+    }
+    if(!G.flags.urn_filled){
+      op('You\'ve (or will have) the milk. Now the urn: in the green room, FILL URN to get it heating.','system');endChunk();return;
+    }
+    if(!G.flags.cocoa_made){
+      op('Urn\'s heating and you\'ve milk. In the green room, MAKE COCOA.','system');endChunk();return;
+    }
+    op('You\'ve a hot cocoa. Take it to Albert at the stage door and GIVE COCOA TO ALBERT for the prop-store key.','system');endChunk();return;
+  }
+  /* 2. With the key: the three threads */
+  if(haveKey){
+    if(!G.flags.has_book){
+      if(!G.inv.includes('mascot')&&!ITEMS.mascot.room){/* delivered already shouldn't reach here */}
+      if(!G.inv.includes('mascot')&&ITEMS.mascot.room!=='prop_store'&&G.flags.prop_store_opened===false){}
+      if(!G.inv.includes('mascot')){
+        op('LINES thread: get Mr Pemberton from the PROP STORE (off the corridor) and take him to the Director. TAKE PEMBERTON, then GIVE PEMBERTON TO BELLWEATHER.','system');endChunk();return;
+      }
+      op('You\'ve got Mr Pemberton. Take him up to the Director\'s office and GIVE PEMBERTON TO BELLWEATHER - he\'ll hand over the Book.','system');endChunk();return;
+    }
+    if(!G.flags.lights_fixed){
+      if(!G.inv.includes('spare_fuse')&&!G.flags.fuse_taken){
+        op('LIGHTS thread: there\'s a spare fuse in the prop store\'s electrical drawer. EXAMINE the electrical drawer, then TAKE FUSE.','system');endChunk();return;
+      }
+      op('You\'ve a spare fuse. Climb to the LIGHTING BOX (up from the wings) and FIT FUSE into the dead board.','system');endChunk();return;
+    }
+    if(!G.flags.has_costume){
+      if(!G.inv.includes('threader')&&!G.flags.threader_returned){
+        op('COSTUME thread: Mrs Tassel\'s needle-threader is in the prop store (examine the shelves / TAKE THREADER). Return it to her in the wardrobe.','system');endChunk();return;
+      }
+      if(!G.flags.threader_returned){
+        op('Take the needle-threader back to Mrs Tassel in the wardrobe - GIVE THREADER TO TASSEL.','system');endChunk();return;
+      }
+      if(!G.flags.knows_vane_hiding){
+        op('The gown\'s locked in Miss Vane\'s room - and something\'s odd in there. Go to her dressing room and EXAMINE the note and the chaise. The leading lady may be closer than anyone thinks.','system');endChunk();return;
+      }
+      if(!G.flags.vane_blessing){
+        op('Cordelia is hiding in her own room, frightened. Don\'t force her gown - TALK TO CORDELIA, more than once. Hear her out, and she may give it freely.','system');endChunk();return;
+      }
+      if(!G.flags.costume_freed){
+        op('You\'ve her blessing and Mrs Tassel\'s ready. Free the gown from the locked rail in Cordelia\'s room - USE PIN ON LOCK (the pin-trick Mrs Tassel taught you).','system');endChunk();return;
+      }
+      op('Take the freed gown to Mrs Tassel in the wardrobe and GET DRESSED.','system');endChunk();return;
+    }
+  }
+  op('You\'re close. Type THINK to see exactly which of lines / costume / lights still needs doing.','system');
+  endChunk();
+}
+
+function tryQuirky(c){
+  /* ── THEATRICAL FLAVOUR & EASTER EGGS (take precedence over generic fallback) ── */
+  if(wrd(c,'bow','curtsy','curtsey','bows')){
+    startChunk();
+    if(G.location==='stage')op(G.flags.show_complete?'You bow again. The applause comes again. You could get used to this.':'You take a low, sweeping bow to the empty-ish house. A lone stagehand in the wings gives a slow, ironic clap. Save it for the curtain call, love.','system');
+    else op('You make an elegant bow to no one in particular. A passing stagehand pretends not to have seen, which is the kindest thing anyone can do for an actor bowing in a corridor.','system');
+    endChunk();return true;
+  }
+  if(wrd(c,'rehearse','warm','exercise','exercises','limber')||inc(c,'vocal')||inc(c,'warm up')||inc(c,'warmup')){
+    startChunk();
+    op(rnd([
+      '"Red leather, yellow leather, red leather, yellow leather." You run the old tongue-twister under your breath. Then "unique New York", which defeats you, as it always has, as it defeats everyone.',
+      'You do a few quiet vocal warm-ups - "mee-may-mah-moh-moo" - and a couple of the breathing exercises they teach you and nobody ever does. You feel marginally more like an instrument and marginally less like a frightened person. Marginally.',
+      'You shake out your hands, roll your shoulders, and silently mouth "the lips, the teeth, the tip of the tongue." Somewhere a real actor is doing this for real. Tonight, astonishingly, that actor is you.'
+    ]),'system');
+    endChunk();return true;
+  }
+  if(wrd(c,'breathe','breath','calm','centre','center','ground')||inc(c,'deep breath')){
+    startChunk();
+    op('You breathe. In for four, hold for four, out for four, the way the old hands taught you. The tumble-dryer in your stomach slows to a gentle spin. You are still terrified, but you are terrified ON PURPOSE now, which is the whole of acting.','system');
+    endChunk();return true;
+  }
+  if(wrd(c,'meditate','pray','manifest')){
+    startChunk();op('You close your eyes and send up a small, non-denominational plea to the gods of the theatre - Thalia, Melpomene, and whichever lesser deity is in charge of remembering your lines. They are notoriously unreliable, but they do, occasionally, come through for a trier.','system');endChunk();return true;
+  }
+  if(wrd(c,'applaud','clap','cheer')||c==='encore'){
+    startChunk();op('You give a small private round of applause. The building, which has heard a great deal of applause in its century and learned not to take it personally, does not react. Save it for someone who\'s earned it - which, in a few minutes, might be you.','system');endChunk();return true;
+  }
+  if(c==='places'||c==='places please'||inc(c,'beginners')){
+    startChunk();
+    if(G.flags.show_ready)op('"Places!" you whisper to yourself. And for once it means you. Get to the STAGE.','system');
+    else op('You call "places" under your breath, but there\'s no show to take places for - not yet. Lines, costume, lights first. Type THINK.','system');
+    endChunk();return true;
+  }
+  if((inc(c,'phone')||inc(c,'call')||inc(c,'ring')||inc(c,'text')||inc(c,'mobile'))&&!inc(c,'telephone')){
+    startChunk();op('You reach for your phone to call someone - your mum, a friend, anyone - and then remember the cardinal rule: no phones backstage, ever, and certainly not minutes from curtain. Besides, what would you say? "I think I\'m about to do the thing I\'ve wanted my whole life"? They\'d never believe you. You put it away.','system');endChunk();return true;
+  }
+  if(inc(c,'selfie')||(inc(c,'photo')&&wrd(c,'take','snap'))){
+    startChunk();op('You consider a quick selfie to mark the occasion - first time going on, after all - but the light\'s terrible and your hands are shaking and some moments, the old hands say, are for living rather than documenting. You let it pass. You\'ll remember tonight without a photo. Everyone always does.','system');endChunk();return true;
+  }
+  if(wrd(c,'admire','pose','preen','vain')&&(G.location==='dressing_room'||G.location==='diva_room')){
+    startChunk();op(G.flags.made_up||G.flags.has_costume?'You strike a pose in the mirror. Not bad. Not bad at all. There\'s a leading lady in there somewhere, and tonight she\'s wearing your face.':'You strike a pose in the mirror and immediately feel ridiculous, which is the correct and healthy response to posing in a mirror.','system');endChunk();return true;
+  }
+  if(wrd(c,'knock')||((inc(c,'open')||inc(c,'close'))&&inc(c,'door'))){
+    startChunk();
+    var doorMsg={
+      diva_room:'You knock politely on the doorframe. It is, you reflect, the first time in fifteen years anyone has knocked before entering the star\'s room rather than fleeing it.',
+      director_office:'You knock on the Director\'s door. "COME," he says, in the tone of a man who has been saying "come" to disasters all evening.',
+      stage_door:'You knock on the stage door. From outside, a voice: "We\'re full, mate, try the front." Albert, without looking up: "Ignore him. Everyone tries the stage door.")'.replace(')',''),
+    };
+    op(doorMsg[G.location]||'You knock smartly on the nearest door. Theatre doors, being mostly canvas and ambition, make a disappointing sound. Nobody answers, because nobody is on the other side - there rarely is, backstage.','system');endChunk();return true;
+  }
+  if(inc(c,'dim')&&inc(c,'light')||(inc(c,'turn')&&inc(c,'light')&&inc(c,'off'))){
+    startChunk();op(G.location==='lighting_box'?'Your hands hover over the dimmers. Tempting - but the show needs MORE light, not less, and not until the board\'s fixed. Leave the levers be.':'There\'s no lighting control here. The board\'s up in the lighting box, and what it needs is a fuse and a steady hand, not a fiddle.','system');endChunk();return true;
+  }
+  /* take mark / take place on stage -> win when ready */
+  if(G.location==='stage'&&(inc(c,'take mark')||inc(c,'take my mark')||inc(c,'take place')||inc(c,'take my place')||inc(c,'stand on mark')||c==='perform'||c==='act'||c==='go on'||c==='begin'||inc(c,'raise curtain')||inc(c,'curtain up'))){
+    if(G.flags.has_book&&G.flags.has_costume&&G.flags.lights_fixed)G.flags.show_ready=true; /* belt-and-braces */
+    if(G.flags.show_ready&&!G.gameOver){doWin();return true;}
+    startChunk();op('You take a mark on the boards, heart pounding - but you\'re not ready yet. You can\'t go on until you know the part, you\'re dressed for it, and the lights are up. Type THINK to see what\'s left.','error');endChunk();return true;
+  }
+  /* make up / apply greasepaint at a mirror */
+  if((inc(c,'make up')||inc(c,'makeup')||inc(c,'greasepaint')||inc(c,'put on make'))&&(G.location==='dressing_room'||G.location==='diva_room')){
+    startChunk();
+    if(!G.flags.made_up){
+      op('You sit at the mirror and put your face on: the base, the eyes, a steadying line here and there, the warpaint of the perpetually overlooked. The frightened understudy in the glass becomes, stroke by stroke, someone who might just belong in the light.','success');
+      op('It changes nothing and everything. You feel a half-inch braver.','system');
+      G.flags.made_up=true;addScore(2,'put on your make-up');
+    }else{op('You\'re already made up, and rather well, if the flickering bulb is to be believed.','system');}
+    endChunk();return true;
+  }
+  /* superstition gags */
+  if(wrd(c,'whistle')){
+    startChunk();
+    op('You start to whistle - and three separate people materialise from the shadows to glare at you. "NOT BACKSTAGE!" Whistling backstage, in the old days, was how the flymen signalled cues; whistle the wrong tune and a hundredweight of scenery comes down on your head. You stop whistling. You make a note to never whistle again.','system');
+    endChunk();return true;
+  }
+  if(inc(c,'macbeth')||inc(c,'scottish play')){
+    startChunk();
+    op('You say it. You say the name. The temperature of the building drops three degrees and somewhere a door slams of its own accord. Miss Quill\'s voice floats out of the dark: "Outside. Turn round three times. Spit. Knock to be let back in. You KNOW the rule." You decide, on balance, not to push your luck any further tonight.','system');
+    endChunk();return true;
+  }
+  if(wrd(c,'good luck')||c==='good luck'){
+    startChunk();op('You very nearly wish someone good luck, then catch yourself in horror. You NEVER wish an actor good luck. "Break a leg," you say instead, and the building relaxes around you.','system');endChunk();return true;
+  }
+  if(inc(c,'break a leg')){
+    startChunk();op('"Break a leg," you murmur - the only acceptable benediction in this trade. Somewhere, a yellowed telegram about Reginald seems to nod approvingly.','system');endChunk();return true;
+  }
+  /* look in things */
+  if((inc(c,'look in')||inc(c,'look inside')||inc(c,'open')||inc(c,'peer in')||inc(c,'rummage'))){
+    if(inc(c,'biscuit')&&G.location==='green_room'){startChunk();op('You open the biscuit tin with the helpless optimism of the truly hungry. Inside: one broken bourbon, a button, and a fine dust of crushed dreams. You close it again. Some rituals exist only to be completed.','system');endChunk();return true;}
+    if((inc(c,'fridge'))&&G.location==='box_office'){startChunk();cmdExamine('mini-fridge');return true;}
+    if(inc(c,'coffin')&&G.location==='prop_store'){startChunk();op('You lift the coffin lid. Half a bag of fake snow and a note: "IF YOU\'RE READING THIS, IT\'S NOT YOUR TURN YET." You put the lid back down with more haste than dignity.','system');endChunk();return true;}
+    if(inc(c,'drawer')&&G.location==='prop_store'){startChunk();cmdExamine('electrical drawer');return true;}
+    if(inc(c,'fire bucket')||(inc(c,'bucket')&&G.location==='corridor')){startChunk();op('You rummage in the fire bucket\'s sand. You find: one cigarette end of great antiquity, and the firm sense that you should wash your hands. No props, no clues, no luck.','system');endChunk();return true;}
+  }
+  /* sit on the sofa (superstition) */
+  if(wrd(c,'sit')&&(inc(c,'sofa')||inc(c,'couch'))&&G.location==='green_room'){
+    startChunk();op('You move to sink into the sofa - and freeze. Sitting down before a show, the old hands say, invites the whole evening to sit down with you. You remain, superstitiously, standing. The sofa exhales a small disappointed puff of dust.','system');endChunk();return true;
+  }
+  if(wrd(c,'sit','rest','relax','nap','sleep')){
+    startChunk();op(rnd(['This is not a sitting-down sort of night. Curtain\'s in minutes.','You consider resting. The building, vibrating with imminent catastrophe, declines to allow it.']),'system');endChunk();return true;
+  }
+  /* smell */
+  if(wrd(c,'smell','sniff')){
+    startChunk();
+    var smells={
+      dressing_room:'Cold cream, carnations past their best, and the particular dusty smell of a room where someone has waited a very long time.',
+      corridor:'Institutional green paint, old playbills, and the faint electrical tang of a building wound tight.',
+      prompt_corner:'Dust, size, hot lamp, and the held breath of the wings.',
+      wings:'Hemp rope, sawn timber, brown paint, and pigeon. Definitely pigeon.',
+      stage:'Polish, dust, and the warm electric smell of the footlights - the smell, if you had to name it, of being about to be seen.',
+      green_room:'Stewed tea, cocoa, and the ghosts of a thousand digestive biscuits.',
+      wardrobe:'Mothballs, face powder, sweat and glamour, in roughly that order. The smell of every costume that ever made someone braver.',
+      stage_door:'Draught, racing-paper ink, and a cold thermos\'s worth of thwarted cocoa.',
+      box_office:'Ticket-roll paper, a humming fridge, and Brenda\'s forbidden sandwiches.',
+      diva_room:'Tuberose, cigarettes, and underneath it all - now you know to look for it - fear.',
+      lighting_box:'Hot dust, ozone, and somebody\'s abandoned thermos.',
+      director_office:'Cold tea, old paper, and amber nerve-tonic that has been held but, mercifully, not drunk.'
+    };
+    op(smells[G.location]||'It smells of theatre, which is to say of dust and hope.','system');endChunk();return true;
+  }
+  /* listen */
+  if(wrd(c,'listen','hear')){
+    startChunk();
+    var sounds={
+      dressing_room:'Through the wall, the sea-roar of eight hundred people settling. The orchestra tuning. Your own heart, going like a side-drum.',
+      corridor:'Footsteps overhead, the orchestra in the pit, and - from above - a distant despairing voice that can only be the Director.',
+      prompt_corner:'The audience murmuring behind the iron like surf behind a wall. The small electric tick of the cue-lights.',
+      wings:'Rope creaking up in the dark, the flutter of a pigeon, and the muffled orchestra. Mind the whistling.',
+      stage:'The vast, breathing hush of a full house just the other side of the curtain. It is the most frightening sound in the world.',
+      green_room:'The urn ticking and gurgling. The noticeboard\'s curling papers stirring in the draught.',
+      wardrobe:'Mrs Tassel muttering to Deirdre, the hiss of the iron, and the faint nod of ostrich feathers.',
+      stage_door:'The cat-flap clacking in the draught, Albert turning the racing page, the front-of-house tannoy far off.',
+      box_office:'Brenda sighing at the small print, the fridge humming, the queue murmuring in the foyer.',
+      diva_room:'Very faint breathing that isn\'t yours, if you listen - and you should.',
+      lighting_box:'The hum of the rig and, below, the great restless animal of the audience.',
+      director_office:'A tinny telephone voice asking "Hello? Hello?" into a room too distraught to answer.'
+    };
+    op(sounds[G.location]||'You listen. The theatre breathes around you.','system');endChunk();return true;
+  }
+  /* knock-knock / break the fourth wall easter eggs */
+  if(c==='xyzzy'||c==='plugh'){startChunk();op('A hollow voice from the flies says: "Wrong play, love." A pigeon, possibly the same one, coos in agreement.','system');endChunk();return true;}
+  if(wrd(c,'wait')||c==='z'||c==='pause'){startChunk();op(rnd(['Time passes. The clock to curtain ticks on, indifferent to your nerves.','You wait. Curtain does not wait. Best keep moving.']),'system');endChunk();return true;}
+  if(wrd(c,'pray','cross fingers')){startChunk();op('You touch your rabbit\'s foot, cross your fingers, and send up a small theatrical prayer to whatever gods preside over opening nights. They are, by reputation, capricious, but they do love a trier.','system');endChunk();return true;}
+  if(wrd(c,'cry','weep','panic')){startChunk();op('You permit yourself precisely three seconds of pure panic. Then you breathe, the way the old hands taught you, and put it away. Panic later. There\'s a show on.','system');endChunk();return true;}
+  if(wrd(c,'scream','shout','yell')){startChunk();op(G.location==='prompt_corner'||G.location==='stage'?'You do NOT shout in the wings minutes from curtain. The whole building turns to look. You mouth "sorry" and shrink.':'You let out a short, stifled cry of theatrical anguish. It helps about as much as you\'d expect, which is to say briefly and not really.','system');endChunk();return true;}
+  if(wrd(c,'sing','hum')){startChunk();op('You hum a few bars to steady yourself. A passing stagehand winces - singing the wrong thing backstage is nearly as bad as whistling - but lets it go. These are desperate times.','system');endChunk();return true;}
+  if(wrd(c,'dance','twirl','pirouette')){startChunk();op('You attempt a small, defiant twirl. Your nerves, your dignity, and the laws of the cramped backstage geography all object. You stop.','system');endChunk();return true;}
+  if(wrd(c,'eat','drink')){
+    if(inc(c,'cocoa')&&G.inv.includes('cocoa')){startChunk();op('You very nearly drink Albert\'s cocoa yourself. Then you imagine his face. You do not drink the cocoa.','system');endChunk();return true;}
+    startChunk();op('No time, and nothing fit to eat - the biscuit tin saw to that years ago.','system');endChunk();return true;}
+  if(wrd(c,'kick','hit','punch','kiss','hug')){
+    startChunk();op(rnd(['An understandable impulse. The theatre absorbs it with the patience of a building that has seen every human emotion played at full volume nightly for a century.','You let off a little steam. The show, sublimely indifferent, must still go on.']),'system');endChunk();return true;}
+  return false;
+}
+
+/* ── SAVE / LOAD / RESTART ── */
+function doRestart(){
+  try{localStorage.removeItem('tsmgo_save');}catch(e){}
+  G.turns=0;G.score=0;G.flags={};G.location='dressing_room';
+  G.inv=['ruined_script','greasepaint','rabbits_foot','safety_pin'];
+  G.visited=new Set();G.gameOver=false;G.awaitingRestartConfirm=false;
+  Object.values(ITEMS).forEach(function(it){if(it._orig!==undefined)it.room=it._orig;delete it.given;});
+  Object.values(NPCS).forEach(function(n){n.spoken=false;n.greetIdx=0;n.talkCount=0;n.wandered=false;});
+  _pendingCmd='';outEl.innerHTML='';srEl.textContent='';
+  upStatus();init();
+}
+function autoSave(){
+  try{
+    var d={turns:G.turns,score:G.score,flags:G.flags,location:G.location,
+      inv:G.inv,visited:[...G.visited],gameOver:G.gameOver,
+      npcState:Object.fromEntries(Object.entries(NPCS).map(function([id,n]){return[id,{spoken:n.spoken,greetIdx:n.greetIdx||0,talkCount:n.talkCount||0,wandered:n.wandered||false}];})),
+      itemRooms:Object.fromEntries(Object.entries(ITEMS).map(function([id,it]){return[id,it.room];}))};
+    localStorage.setItem('tsmgo_save',JSON.stringify(d));
+  }catch(e){}
+}
+function doLoad(){
+  var raw=localStorage.getItem('tsmgo_save');if(!raw)return false;
+  var d=JSON.parse(raw);
+  G.turns=d.turns||0;G.score=d.score||0;G.flags=d.flags||{};
+  G.location=d.location||'dressing_room';G.inv=d.inv||[];
+  G.visited=new Set(d.visited||[]);G.gameOver=d.gameOver||false;
+  if(d.npcState)Object.entries(d.npcState).forEach(function([id,v]){
+    if(NPCS[id]){NPCS[id].spoken=v.spoken||false;NPCS[id].greetIdx=v.greetIdx||0;NPCS[id].talkCount=v.talkCount||0;NPCS[id].wandered=v.wandered||false;}
+  });
+  if(d.itemRooms)Object.entries(d.itemRooms).forEach(function([id,v]){if(ITEMS[id])ITEMS[id].room=v;});
+  upStatus();return true;
+}
+function cmdLoad(){
+  startChunk();
+  try{
+    if(!doLoad()){op('No saved game found.','error');endChunk();return;}
+    op('Game restored. Curtain still pending. Break a leg.','success');endChunk();descRoom(true);
+  }catch(e){op('Could not load saved game.','error');endChunk();}
+}
+
+/* ── MAIN PARSER ── */
+function parse(raw){
+  if(!raw.trim())return;
+  var cmd=norm(raw);
+  if(_disambigChoices){if(resolveDisambig(cmd))return;}
+  if(G.gameOver&&cmd!=='restart'&&!G.awaitingRestartConfirm){
+    startChunk();op('The show is over and the curtain has fallen! Type RESTART to play again.','system');endChunk();return;
+  }
+  G.turns++;upStatus();autoSave();
+  if(cmd==='repeat'||cmd==='r'||cmd==='again'){
+    srEl.textContent='';void srEl.offsetWidth;srEl.textContent=G.lastText;
+    startChunk('Last output (repeated)');G.lastText.split('\n').filter(s=>s.trim()).forEach(s=>op(s.trim()));endChunk();return;
+  }
+  if(cmd==='restart'){
+    if(G.awaitingRestartConfirm){doRestart();return;}
+    G.awaitingRestartConfirm=true;startChunk();
+    op('Are you sure you want to restart? This will erase all your progress.','error');
+    op('Type YES to confirm, or anything else to cancel.','system');endChunk();return;
+  }
+  if(G.awaitingRestartConfirm){
+    G.awaitingRestartConfirm=false;
+    if(['yes','y','confirm','ok'].includes(cmd)){doRestart();return;}
+    startChunk();op('Restart cancelled. The show goes on.','system');endChunk();return;
+  }
+  if(cmd==='load'||cmd==='restore'){cmdLoad();return;}
+  if(cmd==='look'||cmd==='l'||cmd==='look around'){cmdLook();return;}
+  if(['hint','help me','i am stuck','stuck','clue',"i'm stuck"].includes(cmd)){cmdHint();return;}
+  if(['inventory','i','inv','items','carried','carrying'].includes(cmd)){cmdInventory();return;}
+  if(['help','h','?','commands'].includes(cmd)){cmdHelp();return;}
+  if(cmd==='exits'||cmd==='where can i go'){cmdExits();return;}
+  if(cmd==='score'||cmd==='points'){startChunk();op('Score: '+G.score+' / '+MAXSCORE+' in '+G.turns+' turns.','score');endChunk();return;}
+  if(['think','ponder','recall','remember','what now','what next'].includes(cmd)){cmdThink();return;}
+  if(cmd==='where am i'||cmd==='location'||cmd==='where are we'){
+    startChunk();op('You are in: '+ROOMS[G.location].name+'.','system');
+    var seen=new Set();var exitLines=[];
+    Object.entries(ROOMS[G.location].exits).forEach(function([dir,dest]){
+      if(!seen.has(dest)&&ROOMS[dest]){seen.add(dest);
+        var sh=Object.entries(ROOMS[G.location].exits).filter(function([,v]){return v===dest;}).sort(function(a,b){return a[0].length-b[0].length;})[0][0];
+        exitLines.push(sh+' - '+ROOMS[dest].name);}
+    });
+    op('Exits: '+exitLines.join(', ')+'.','exits');endChunk();return;
+  }
+  if(['take all','take everything','get all','get everything'].includes(cmd)){
+    var takeable=roomItems(G.location).filter(function(id){return !ITEMS[id].fixed;});
+    if(!takeable.length){startChunk();op('Nothing here to pick up.','system');endChunk();return;}
+    startChunk();takeable.forEach(function(id){G.inv.push(id);ITEMS[id].room=null;op('Taken: '+ITEMS[id].name+'.','success');});
+    upStatus();endChunk();return;
+  }
+
+  /* dedicated puzzle verbs (before quirky/generic) */
+  if(inc(cmd,'fill')&&inc(cmd,'urn')||cmd==='fill urn'){cmdFillUrn();return;}
+  if((inc(cmd,'make')&&inc(cmd,'cocoa'))||cmd==='make cocoa'){cmdMakeCocoa();return;}
+  if((inc(cmd,'fit')&&inc(cmd,'fuse'))||cmd==='fit fuse'||(inc(cmd,'put')&&inc(cmd,'fuse'))||(inc(cmd,'replace')&&inc(cmd,'fuse'))){cmdFitFuse();return;}
+  if(cmd==='get dressed'||cmd==='dress'||(inc(cmd,'put on')&&inc(cmd,'gown'))||(inc(cmd,'wear')&&inc(cmd,'gown'))||(inc(cmd,'wear')&&inc(cmd,'costume'))){cmdGetDressed();return;}
+
+  /* prop-store item taking (special, key-gated room already opened) */
+  if(G.location==='prop_store'&&wrd(cmd,'take','get','grab','pick','collect','fetch','retrieve','find')){
+    if(inc(cmd,'pemberton')||inc(cmd,'cat')||inc(cmd,'mascot')){takeFromPropStore('mascot');return;}
+    if(inc(cmd,'fuse')){takeFromPropStore('fuse');return;}
+    if(inc(cmd,'threader')||inc(cmd,'needle')){takeFromPropStore('threader');return;}
+  }
+
+  if(tryQuirky(cmd))return;
+
+  /* win shortcut if somehow ready and on stage */
+  if(G.flags.show_ready&&!G.gameOver&&G.location==='stage'&&wrd(cmd,'go','begin','perform','act','start')){doWin();return;}
+
+  var room=ROOMS[G.location];
+  if(room.exits[cmd]){cmdMove(room.exits[cmd]);return;}
+  var goM=cmd.match(/^(?:go|walk|move|head|travel|run|proceed|enter|exit|leave|climb|make (?:my )?way(?:\s+to)?)\s+(?:to\s+|the\s+)?(.+)$/);
+  if(goM){
+    var arg=goM[1].trim();
+    if(room.exits[arg]){cmdMove(room.exits[arg]);return;}
+    var best=Object.entries(room.exits).find(function([k]){var kw=k.split(/\s+/);var aw=arg.split(/\s+/);return kw.some(function(kp){return aw.some(function(ap){return ap===kp&&ap.length>2;});});});
+    if(best){cmdMove(best[1]);return;}
+    startChunk();op('You can\'t get to "'+arg+'" from here. Type EXITS to see your options.','error');endChunk();return;
+  }
+  var xM=cmd.match(/^(?:examine|x|look at|look in|look inside|inspect|read|describe|study|check|view|peer at|peer into)\s+(.+)$/);
+  if(xM){cmdExamine(xM[1].trim());return;}
+  var tkM=cmd.match(/^(?:take|get|pick up|pick|grab|collect|acquire|retrieve|lift|fetch|pocket|gather)\s+(.+)$/);
+  if(tkM){cmdTake(tkM[1].trim());return;}
+  var drM=cmd.match(/^(?:drop|put down|set down|discard|leave|abandon)\s+(.+)$/);
+  if(drM){cmdDrop(drM[1].trim());return;}
+  var usM=cmd.match(/^(?:use|combine|apply|operate|try using|employ)\s+(.+)$/);
+  if(usM){cmdUse(usM[1].trim());return;}
+  var tlM=cmd.match(/^(?:talk|speak|chat|converse|ask|greet|address|hail|say hello to)\s+(?:to\s+|with\s+)?(.+)$/);
+  if(tlM){cmdTalk(tlM[1].trim());return;}
+  if(['talk','speak','chat'].includes(cmd)){cmdTalk('');return;}
+  if(/^(?:give|show|offer|present|hand|return)\s+/.test(cmd)){cmdGive(raw);return;}
+  /* bare 'use pin' etc */
+  if(/^(?:use|combine|fit|put|stick|attach|fix|pick|force)\b/.test(cmd)){cmdUse(cmd);return;}
+
+  startChunk();
+  op(rnd([
+    'That\'s not something you can do here - or the words are a little outside what this stage understands. Type HELP for commands.',
+    'You try it with great conviction. The universe applauds the effort and declines the action. Try HELP.',
+    'That\'s not in tonight\'s script. Perhaps a different approach? HELP lists what\'s understood.'
+  ]),'error');endChunk();
+}
+
+var inputEl=document.getElementById('cmd-input');
+document.getElementById('cmd-submit').addEventListener('click',submit);
+inputEl.addEventListener('keydown',function(e){
+  if(e.key==='Enter'){submit();return;}
+  if(e.key==='ArrowUp'){
+    e.preventDefault();if(!G.history.length)return;
+    if(G.histIdx<0)G.histIdx=G.history.length-1;else G.histIdx=Math.max(0,G.histIdx-1);
+    inputEl.value=G.history[G.histIdx];inputEl.setSelectionRange(inputEl.value.length,inputEl.value.length);
+  }else if(e.key==='ArrowDown'){
+    e.preventDefault();if(G.histIdx<0)return;
+    G.histIdx=Math.min(G.history.length-1,G.histIdx+1);
+    inputEl.value=G.history[G.histIdx];inputEl.setSelectionRange(inputEl.value.length,inputEl.value.length);
+  }
+});
+function submit(){var v=inputEl.value.trim();if(!v)return;G.history.push(v);G.histIdx=-1;inputEl.value='';outEl.focus();showCmd(v);parse(v);setTimeout(function(){inputEl.focus();},50);}
+function quickCmd(cmd){G.history.push(cmd);G.histIdx=-1;showCmd(cmd);parse(cmd);inputEl.focus();}
+
+Object.entries(ITEMS).forEach(function([,it]){it._orig=it.room;});
+
+function init(){
+  var loaded=false;
+  try{var r=localStorage.getItem('tsmgo_save');if(r){var d=JSON.parse(r);if(d&&d.turns>0&&!d.gameOver){doLoad();loaded=true;}}}catch(e){}
+  startChunk('The Show Must Go On');
+  op('A backstage comedy in one frantic evening.','system');
+  op('Type HELP for commands. The quick buttons below are always available. Up and down arrows recall previous commands.','system');
+  endChunk();
+  if(!loaded)descRoom(true);
+  upStatus();inputEl.focus();
+}
+init();
+
+</script>
+</body>
+</html>
