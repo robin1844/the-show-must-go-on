@@ -211,6 +211,9 @@ const ITEMS={
   cocoa_tin:{name:'tin of cocoa',art:'a',room:'green_room',fixed:true,
     desc:`A dented tin of cocoa powder on the green-room shelf, survivor of the economies because nobody likes cocoa quite enough to finish it. There's plenty left. With hot water and a drop of milk, this becomes the most valuable substance in the building.`,
     take_resp:`No need to pocket the whole tin - it lives by the urn. The cocoa-making happens here, once you've got water heating and some milk.`},
+  empty_mug:{name:'"WORLD\'S OKAYEST UNDERSTUDY" mug',art:'a',room:'green_room',
+    desc:`A chipped mug from the green-room shelf, reading WORLD'S OKAYEST UNDERSTUDY in fading letters. "Okayest" - not best, not worst, just... present, and acceptable, and reliably overlooked. It was a Secret Santa gift three years ago and you have never been entirely sure whether it was a kindness or a diagnosis. Either way, it's clearly yours, and it'll do nicely for a hot drink when the time comes.`,
+    use_resp:`It's a mug. Its destiny is to hold cocoa. Get the urn going and the milk sorted, and it'll have its big moment.`},
   /* ── FIXED SCENERY: WARDROBE ── */
   costume_rails:{name:'costume rails',art:'the',room:'wardrobe',fixed:true,
     desc:`Rails and rails of costumes receding into fragrant gloom: doublets, crinolines, a pantomime cow (rear half only, the front half being "in litigation"), and an entire regiment of identical butler's tailcoats. The smell is pure theatre - mothballs, face powder, sweat, and glamour, in roughly that order.`,
@@ -451,7 +454,7 @@ const ROOMS={
       'biscuit tin':ITEMS.biscuit_tin.desc,
       biscuits:ITEMS.biscuit_tin.desc,
       tin:ITEMS.cocoa_tin.desc,
-      mugs:`A row of mismatched mugs on hooks: WORLD'S OKAYEST STAGEHAND, a chipped one from a 1979 panto, and one that simply says NO in stern capitals, which belongs to the Stage Manager and which no one has ever dared use. You may borrow the okayest-stagehand one for a worthy cause.`,
+      mugs:`A row of mismatched mugs on hooks: one from a 1979 panto, chipped; one that simply says NO in stern capitals, which belongs to the Stage Manager and which no one has ever dared use; and a faded one reading WORLD'S OKAYEST UNDERSTUDY - "okayest", note, not best or worst - which is, unmistakably, yours. You could TAKE the okayest-understudy mug; it'll want filling before the night's out.`,
       noticeboard:`The green-room noticeboard, an archaeology of company life: a rehearsal rota three revisions out of date, a stern notice about washing one's own mug, a flyer for a colleague's one-person show about Vita Sackville-West, and a cartoon of the Director weeping, captioned "OPENING NIGHT" - which is either prophetic or just observant.`,
       counter:`The counter where the urn presides, sticky with the ghosts of a thousand teas, ringed with mug-stains like the growth rings of a sad tree. The cocoa tin and the mugs live up here, within easy reach of the urn.`,
     },
@@ -1112,9 +1115,10 @@ function cmdMakeCocoa(){
   if(G.inv.includes('cocoa')||G.flags.cocoa_made){op('You\'ve already got a steaming mug of cocoa made. Albert\'s waiting for it.','system');endChunk();return;}
   if(!G.flags.urn_filled){op('The urn\'s cold and empty. Fill it and switch it on first - try FILL URN.','error');endChunk();return;}
   if(!G.inv.includes('milk')){op('You\'ve got the urn heating and the cocoa tin to hand, but no milk - and Albert was very clear that black cocoa is "a punishment, not a treat". You need a drop of milk. The box office has the only milk in the building.','error');endChunk();return;}
-  op('The urn has come to the boil. You spoon cocoa from the tin into the WORLD\'S OKAYEST STAGEHAND mug, draw off a measure of scalding water, and add a generous slug of Brenda\'s milk.');
+  var usedOwnMug=G.inv.includes('empty_mug');
+  op('The urn has come to the boil. You spoon cocoa from the tin into a mug'+(usedOwnMug?' - your own WORLD\'S OKAYEST UNDERSTUDY one, as it happens':'')+', draw off a measure of scalding water, and add a generous slug of Brenda\'s milk.');
   op('You stir. It is, even by the standards of a building that runs on tea, a magnificent mug of cocoa.','success');
-  G.inv=G.inv.filter(id=>id!=='milk');ITEMS.milk.room=null;
+  G.inv=G.inv.filter(id=>id!=='milk'&&id!=='empty_mug');ITEMS.milk.room=null;ITEMS.empty_mug.room=null;
   G.inv.push('cocoa');ITEMS.cocoa.room=null;G.flags.cocoa_made=true;
   op('You now have a mug of cocoa - the single most powerful bargaining chip in the building.','items');
   addScore(8,'made the keeper\'s cocoa');upStatus();endChunk();
@@ -1240,6 +1244,20 @@ function cmdGive(raw){
   op('Nobody here wants that from you just now.','system');endChunk();
 }
 
+/* Helping Brenda read the seating plan - reachable via TALK, or intuitively via
+   READ/HELP/EXAMINE the plan. Manages its own chunk. */
+function doHelpBrenda(){
+  startChunk('Brenda');
+  if(G.flags.brenda_helped){
+    op('Brenda\'s VIP party is placed and her crisis is over. "You\'ve done your bit, love," she says. "Now go and do yours."','npc');
+    endChunk();return;
+  }
+  op('You take the seating plan, hold it at a sensible distance - the trick is to be just far enough that pride and print make peace - and read the seat numbers off to her one by one: "Circle A, eleven through eighteen for your VIP party; Mayor on the aisle, sponsor and wife the far end so they needn\'t make conversation."','system');
+  op('"Oh, you STAR," says Brenda, inking her little crosses and sagging with relief. "You\'ve saved my life. Here -" she opens the fridge "- the milk, as promised. For the cocoa, mind. Not for funny business." She presses the cold bottle into your hands.','npc');
+  G.flags.brenda_helped=true;G.inv.push('milk');ITEMS.milk.room=null;G.flags.has_milk=true;
+  addScore(6,'helped Brenda read the seating plan and won the milk');upStatus();endChunk();
+}
+
 function cmdTalk(target){
   startChunk();
   /* In the diva room, attempting to talk (to Cordelia, or to the seemingly empty room) finds her */
@@ -1281,10 +1299,7 @@ function cmdTalk(target){
 
   /* Brenda: helping her read the plan happens on first talk-after-greet */
   if(nid==='brenda'&&!G.flags.brenda_helped){
-    op('You take the seating plan, hold it at a sensible distance, and read the seat numbers off to her one by one - "Circle A, eleven through eighteen for your VIP party" - while she inks her little crosses, sagging with relief.','system');
-    op('"Oh, you STAR," says Brenda. "You\'ve saved my life. Here -" she opens the fridge "- the milk, as promised. For the cocoa, mind. Not for funny business." She presses the cold bottle into your hands.','npc');
-    G.flags.brenda_helped=true;G.inv.push('milk');ITEMS.milk.room=null;G.flags.has_milk=true;
-    addScore(6,'helped Brenda and won the milk');upStatus();endChunk();return;
+    doHelpBrenda();return;
   }
 
   /* Vane: the empathy arc; final stage grants blessing + brooch */
@@ -1449,6 +1464,16 @@ function localNudge(){
   if(npcHereUnspoken()){
     if(G.location==='diva_room'&&!G.flags.knows_vane_hiding)
       return 'This is the leading lady\'s room and she\'s the one who\'s "vanished". Something doesn\'t add up in here. EXAMINE the things on the dressing table - and try TALKing, even to an apparently empty room.';
+    if(G.location==='box_office'&&!G.flags.brenda_helped)
+      return 'Brenda can\'t read the tiny seat numbers on her plan and needs someone who can. Do the obvious thing: READ THE SEATING PLAN for her (or TALK TO her). She\'ll be grateful - and helpful.';
+    if(G.location==='stage_door'&&!G.flags.has_prop_key)
+      return 'Albert keeps the keys and does favours only for favours. TALK TO him to find out his price.';
+    if(G.location==='wardrobe'&&!G.flags.has_costume)
+      return 'TALK TO Mrs Tassel - she\'ll dress you for the part, but she\'s lost something small and silver she needs first.';
+    if(G.location==='director_office'&&!G.flags.has_book)
+      return 'TALK TO the Director - he\'s clutching something you need, and won\'t let go until he\'s calmer.';
+    if(G.location==='prompt_corner')
+      return 'TALK TO Miss Quill, the prompter. She misses nothing and will tell you, quietly, what actually matters tonight.';
     return 'There\'s someone here. In a theatre full of people who all want something, the fastest way forward is usually to TALK TO them (and often more than once). See what they need.';
   }
   var n={
@@ -1498,7 +1523,10 @@ function cmdHint(){
   /* 1. Cocoa sub-chain to get the key */
   if(!haveKey){
     if(!G.flags.brenda_helped&&!G.inv.includes('milk')){
-      op('Your next concrete step: the locked prop store holds most of what you need, and Albert will trade its key for a hot cocoa. The cocoa needs milk - and Brenda in the BOX OFFICE has the only milk, if you help her read her seating plan. Go and TALK TO BRENDA.','system');endChunk();return;
+      if(G.location==='box_office'){
+        op('Brenda just needs someone to read the tiny seat numbers she can\'t. Do exactly that: try READ THE SEATING PLAN (or TALK TO BRENDA). She\'ll give you the milk in thanks.','system');endChunk();return;
+      }
+      op('You need milk next, and Brenda in the BOX OFFICE has the only bottle - she\'ll swap it for help with her seating plan. Head there.','system');endChunk();return;
     }
     if(!G.flags.urn_filled){
       op('You\'ve (or will have) the milk. Now the urn: in the green room, FILL URN to get it heating.','system');endChunk();return;
@@ -1548,6 +1576,34 @@ function cmdHint(){
 }
 
 function tryQuirky(c){
+  /* ── PUZZLE: helping Brenda read the seating plan (intuitive phrasings) ── */
+  if(G.location==='box_office'&&!G.flags.brenda_helped&&(
+       (wrd(c,'read','help')&&(inc(c,'plan')||inc(c,'seating')||inc(c,'number')||inc(c,'seat')||inc(c,'brenda')||inc(c,'chart')))||
+       c==='read numbers'||c==='read the numbers'||c==='read seat numbers'||c==='read it'||c==='read'||
+       c==='help brenda'||c==='help her'||
+       ((inc(c,'examine')||inc(c,'look at')||inc(c,'study'))&&(inc(c,'plan')||inc(c,'seating'))&&false) /* examine handled below to still show desc once helped */
+     )){
+    doHelpBrenda();return true;
+  }
+  /* Examining/looking at the plan while Brenda still needs help should ALSO solve it
+     (a player who "examines the plan to read it" is doing exactly what she asked). */
+  if(G.location==='box_office'&&!G.flags.brenda_helped&&
+     (inc(c,'examine')||inc(c,'look at')||inc(c,'read')||inc(c,'study')||inc(c,'check'))&&
+     (inc(c,'plan')||inc(c,'seating')||inc(c,'chart'))){
+    doHelpBrenda();return true;
+  }
+  /* ── GREEN ROOM: biscuit-tin contents & sofa (flavour, no take) ── */
+  if(G.location==='green_room'){
+    if((wrd(c,'take','get','grab','pick','pocket','eat','have')||inc(c,'eat'))&&inc(c,'bourbon')){
+      startChunk();op('You consider the broken half-bourbon. You are an adult professional minutes from the most important entrance of your life. You are not going to eat a stranger\'s decade-old biscuit out of a tin.\n\n...You eye it again. No. No. Some lines even an understudy won\'t cross. You leave the bourbon to its long retirement.','system');endChunk();return true;
+    }
+    if((wrd(c,'take','get','grab','pick','pocket')||inc(c,'keep'))&&inc(c,'button')){
+      startChunk();op('You pick up the lone button from the biscuit tin and examine it. It is a perfectly ordinary brown button, the sort that falls off a cardigan and embarks on a rich second life of being kept "just in case" by someone who will never sew it back on. It is not your destiny. You return it to the tin, where it belongs, among the crumbs of better days.','system');endChunk();return true;
+    }
+    if((inc(c,'look under')||inc(c,'look beneath')||inc(c,'under')||inc(c,'beneath')||inc(c,'behind'))&&(inc(c,'sofa')||inc(c,'couch')||inc(c,'cushion'))){
+      startChunk();op('You brave the dark beneath the sagging sofa, where no hand has ventured in living memory. Your fingers close on: a fossilised cough sweet, 47p in assorted change, a single dramatic-looking earring (lost, a programme note from 1991 suggests, by an actress playing Goneril), and a biro that still, miraculously, works. You take the 47p in spirit and leave the rest to archaeology. Nothing here will help you save the show - but it\'s nice to know the sofa\'s keeping busy.','system');endChunk();return true;
+    }
+  }
   /* ── THEATRICAL FLAVOUR & EASTER EGGS (take precedence over generic fallback) ── */
   if(wrd(c,'bow','curtsy','curtsey','bows')){
     startChunk();
