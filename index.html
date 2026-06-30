@@ -1195,11 +1195,16 @@ function cmdGetDressed(){
   startChunk();
   if(G.location!=='wardrobe'){op('Mrs Tassel does the dressing, and Mrs Tassel\'s in the wardrobe.','error');endChunk();return;}
   if(G.flags.has_costume){op('You\'re already dressed, love, and looking the part. Get to the stage.','system');endChunk();return;}
-  if(!G.flags.costume_freed){
+  var haveGown=G.inv.includes('star_gown')||G.flags.costume_freed;
+  if(!haveGown){
     if(!G.flags.vane_blessing){op('You\'ve nothing for Mrs Tassel to fit you into yet - the gown\'s still locked in Cordelia\'s room, and you\'ll want Cordelia\'s say-so before you touch it.','error');endChunk();return;}
     op('You\'ve Cordelia\'s blessing, but the gown\'s still on its locked rail in her room. Free it first - your safety pin and the trick Mrs Tassel taught you should do it.','error');endChunk();return;
   }
-  if(!G.flags.threader_returned){op('Mrs Tassel takes the gown, reaches for her needle - and stops. "I still can\'t thread the blessed thing, love. My threader." Right. First things first.','error');endChunk();return;}
+  /* Freeing the gown requires the threader to have been returned, so a freed gown implies it.
+     Self-heal the flag rather than dead-ending a chain the player has already completed
+     (guards against legacy saves / any path that left the flag unset). */
+  if(haveGown&&!G.inv.includes('threader'))G.flags.threader_returned=true;
+  if(!G.flags.threader_returned){op('Mrs Tassel reaches for the gown, then stops, patting her empty pocket. "I still can\'t thread the blessed needle, love - my little silver threader\'s gone missing. Find me that first and I\'ll have you fitted in no time."','error');endChunk();return;}
   op('Mrs Tassel takes the midnight-blue gown reverently, clucks over the fit, and goes to work: three pins, two tucks, a flashing needle (threaded, at last, with her recovered silver friend), and a great deal of muttering about "the state of the hem".');
   op('"There," she says, stepping back, her eyes suddenly bright. "Oh, love. Look at you. You look like the leading lady. Because tonight you ARE." She blows her nose loudly. "Cordelia said I\'d cry. Don\'t tell her she was right."','npc');
   op('You catch yourself in the wardrobe mirror: gowned, transformed, unmistakably the mistress of the house. The grey understudy is gone.','success');
@@ -1283,6 +1288,8 @@ function cmdGive(raw){
   startChunk();const lo=raw.toLowerCase();
   if(G.location==='stage_door'&&(inc(lo,'cocoa')||inc(lo,'mug')||inc(lo,'drink')||inc(lo,'albert'))){endChunk();cmdGiveCocoa();return;}
   if(G.location==='wardrobe'&&(inc(lo,'threader')||inc(lo,'tassel'))&&G.inv.includes('threader')){endChunk();cmdGiveThreader();return;}
+  /* Hand the freed gown to Mrs Tassel to be dressed — the natural way to trigger GET DRESSED */
+  if(G.location==='wardrobe'&&(inc(lo,'gown')||inc(lo,'dress')||inc(lo,'costume')||inc(lo,'silk'))&&G.inv.includes('star_gown')){endChunk();cmdGetDressed();return;}
   if(G.location==='director_office'&&(inc(lo,'pemberton')||inc(lo,'cat')||inc(lo,'mascot')||inc(lo,'bellweather'))&&G.inv.includes('mascot')){endChunk();cmdGiveMascot();return;}
   op('Nobody here wants that from you just now.','system');endChunk();
 }
