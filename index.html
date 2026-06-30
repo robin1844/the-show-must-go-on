@@ -201,7 +201,7 @@ const ITEMS={
     desc:()=>{
       if(G.flags.cocoa_made)return `The great steel tea urn, vindicated and gently steaming, having produced one perfect mug of cocoa. It looks insufferably pleased with itself.`;
       if(G.flags.urn_filled)return `The tea urn, now full of water and freshly switched on, ticking and gurgling its way up to a boil. All it needs now is the cocoa-making: water, the tin of cocoa on the shelf, and milk - which you don't yet have.`;
-      return `An enormous, ancient steel tea urn, the beating heart of any theatre's morale. It is currently empty, switched off, and sulking. There's a tap at the bottom and a hinged lid at the top. It wants water in it before it'll do anything at all. Get that going and you're most of the way to a hot drink.`;
+      return `An enormous, ancient steel tea urn, the beating heart of any theatre's morale. It is currently empty, switched off, and sulking. There's a draw-off tap at the bottom and a hinged lid at the top, but no plumbing of its own - it has to be filled by hand from the little sink beside it. A mug, carried back and forth from the tap, would do the job. Get water in it and you're most of the way to a hot drink.`;
     },
     take_resp:`The urn holds three gallons and weighs accordingly. It is not leaving this room and frankly neither is anyone who tries to make it.`},
   green_sofa:{name:'sagging sofa',art:'the',room:'green_room',fixed:true,
@@ -443,8 +443,8 @@ const ROOMS={
   },
   green_room:{
     name:"The Green Room",
-    desc_l:()=>`The green room, that curious institution: the place actors wait to be wanted. It is not green, has never been green, and nobody can tell you why it's called that, though everyone has a theory and all the theories are wrong.\n\nA vast sagging chintz sofa dominates one wall. The great steel tea urn presides on a counter, ${G.flags.cocoa_made?'gently steaming in triumph':G.flags.urn_filled?'ticking its way up to the boil':'cold and switched off and sulking'}. A shelf above it holds the tin of cocoa and a row of mismatched mugs. A noticeboard bristles with rotas, complaints, and a single defiant cartoon. The empty biscuit tin sits in state, a monument to better-funded times.\n\nDoors lead back south to the corridor, and through to the wardrobe in the west.`,
-    desc_s:()=>`The green room: sagging sofa, the great tea urn (${G.flags.cocoa_made?'triumphant':G.flags.urn_filled?'heating up':'cold and sulking'}), cocoa tin on the shelf, the famously empty biscuit tin. Corridor's south; wardrobe west.`,
+    desc_l:()=>`The green room, that curious institution: the place actors wait to be wanted. It is not green, has never been green, and nobody can tell you why it's called that, though everyone has a theory and all the theories are wrong.\n\nA vast sagging chintz sofa dominates one wall. The great steel tea urn presides on a counter beside a chipped little sink with a single dripping tap, ${G.flags.cocoa_made?'gently steaming in triumph':G.flags.urn_filled?'ticking its way up to the boil':'cold and switched off and sulking'}. A shelf above it holds the tin of cocoa and a row of mismatched mugs. A noticeboard bristles with rotas, complaints, and a single defiant cartoon. The empty biscuit tin sits in state, a monument to better-funded times.\n\nDoors lead back south to the corridor, and through to the wardrobe in the west.`,
+    desc_s:()=>`The green room: sagging sofa, the great tea urn (${G.flags.cocoa_made?'triumphant':G.flags.urn_filled?'heating up':'cold and sulking'}) beside a little sink and tap, cocoa tin on the shelf, the famously empty biscuit tin. Corridor's south; wardrobe west.`,
     exits:{
       south:'corridor',s:'corridor',corridor:'corridor','out':'corridor','back':'corridor',
       west:'wardrobe',w:'wardrobe',wardrobe:'wardrobe',
@@ -461,6 +461,8 @@ const ROOMS={
       mugs:`A row of mismatched mugs on hooks: one from a 1979 panto, chipped; one that simply says NO in stern capitals, which belongs to the Stage Manager and which no one has ever dared use; and a faded one reading WORLD'S MOST MEDIOCRE UNDERSTUDY - "most mediocre", note, not best or worst - which is, unmistakably, yours. You could TAKE the most-mediocre-understudy mug; it'll want filling before the night's out.`,
       noticeboard:`The green-room noticeboard, an archaeology of company life: a rehearsal rota three revisions out of date, a stern notice about washing one's own mug, a flyer for a colleague's one-person show about Vita Sackville-West, and a cartoon of the Director weeping, captioned "OPENING NIGHT" - which is either prophetic or just observant.`,
       counter:`The counter where the urn presides, sticky with the ghosts of a thousand teas, ringed with mug-stains like the growth rings of a sad tree. The cocoa tin and the mugs live up here, within easy reach of the urn.`,
+      sink:()=>`A chipped little sink beside the urn, with a single tap that drips with the patient persistence of a tap that has been dripping since the Coronation. ${G.flags.urn_filled||G.flags.cocoa_made?'The urn\'s filled now, so the tap can drip in peace.':'This is where the urn gets filled - the urn has no plumbing of its own. Fill a mug here (FILL MUG, or USE MUG ON TAP) and carry it across to the urn.'}`,
+      tap:()=>`The green-room tap over the little sink, dripping steadily. ${G.flags.urn_filled||G.flags.cocoa_made?'You\'ve already drawn what you needed from it.':'The urn won\'t fill itself - run the tap into a mug and pour it into the urn. Try FILL MUG, or USE MUG ON TAP.'}`,
     },
     npcs:[]
   },
@@ -1107,13 +1109,35 @@ function cmdExits(){
 
 /* ── THE INTERLOCKING PUZZLE CHAIN ── */
 
-/* Step: fill + switch on the urn (green room) */
+/* Shared guards for the urn-filling step. Returns true if the step is already
+   done / impossible here (and has emitted the appropriate line), false if the
+   player is clear to proceed. Assumes a chunk is already open. */
+function urnStepBlocked(){
+  if(G.location!=='green_room'){op('There\'s no urn here. The tea urn lives in the green room.','error');return true;}
+  if(G.flags.cocoa_made){op('You\'ve already made the cocoa. The urn has done its work for the night.','system');return true;}
+  if(G.flags.urn_filled){op('The urn is already filled and heating. What it wants now is the cocoa-making - the tin\'s on the shelf, but you\'ll need milk before it\'s worth a thing.','system');return true;}
+  return false;
+}
+
+/* Open the urn / lift its lid: doesn't fill it, but points the player at the
+   mug-and-tap method. */
+function cmdOpenUrn(){
+  startChunk();
+  if(urnStepBlocked()){endChunk();return;}
+  op('You lift the urn\'s hinged lid and peer in. Bone dry - not a drop. The urn has no plumbing of its own; it wants filling by hand.','system');
+  op('There\'s a sink with a tap right beside it. Fill your mug there and pour it in. Try FILL MUG (or USE MUG ON TAP).','system');
+  endChunk();
+}
+
+/* Step: fill + switch on the urn (green room) — done by carrying water from the
+   tap in the mug. Requires the player to have their mug. */
 function cmdFillUrn(){
   startChunk();
-  if(G.location!=='green_room'){op('There\'s no urn here. The tea urn lives in the green room.','error');endChunk();return;}
-  if(G.flags.cocoa_made){op('You\'ve already made the cocoa. The urn has done its work for the night.','system');endChunk();return;}
-  if(G.flags.urn_filled){op('The urn is already filled and heating. What it wants now is the cocoa-making - the tin\'s on the shelf, but you\'ll need milk before it\'s worth a thing.','system');endChunk();return;}
-  op('You haul the urn lid open, fill it from the green-room tap until it\'s good and full, drop the lid, and find the switch.');
+  if(urnStepBlocked()){endChunk();return;}
+  if(!G.inv.includes('empty_mug')){
+    op('You\'ll need something to carry water across in - the urn won\'t fill itself, and there\'s no hose. Your mug\'s on the shelf above the urn. TAKE MUG first.','error');endChunk();return;
+  }
+  op('You turn on the tap and fill the mug several times, pouring it carefully into the urn each time, until the urn is good and full. You drop the lid and find the switch.');
   op('It shudders, ticks, and begins - with the slow grandeur of a great ship leaving harbour - to heat.','success');
   op('Now: cocoa powder (on the shelf), hot water (coming), and milk. Find some milk and you can make the cocoa itself.','system');
   G.flags.urn_filled=true;addScore(5,'resurrected the green-room urn');
@@ -1125,7 +1149,7 @@ function cmdMakeCocoa(){
   startChunk();
   if(G.location!=='green_room'){op('You make cocoa at the urn, and the urn\'s in the green room.','error');endChunk();return;}
   if(G.inv.includes('cocoa')||G.flags.cocoa_made){op('You\'ve already got a steaming mug of cocoa made. Albert\'s waiting for it.','system');endChunk();return;}
-  if(!G.flags.urn_filled){op('The urn\'s cold and empty. Fill it and switch it on first - try FILL URN.','error');endChunk();return;}
+  if(!G.flags.urn_filled){op('The urn\'s cold and empty. Fill it from the sink first - TAKE the mug off the shelf, then FILL MUG (or USE MUG ON TAP) to fill and switch it on.','error');endChunk();return;}
   if(!G.inv.includes('milk')){op('You\'ve got the urn heating and the cocoa tin to hand, but no milk - and Albert was very clear that black cocoa is "a punishment, not a treat". You need a drop of milk. The box office has the only milk in the building.','error');endChunk();return;}
   var usedOwnMug=G.inv.includes('empty_mug');
   op('The urn has come to the boil. You spoon cocoa from the tin into a mug'+(usedOwnMug?' - your own WORLD\'S MOST MEDIOCRE UNDERSTUDY one, as it happens':'')+', draw off a measure of scalding water, and add a generous slug of Brenda\'s milk.');
@@ -1187,9 +1211,13 @@ function cmdGetDressed(){
 
 function cmdUse(raw){
   startChunk();const lo=raw.toLowerCase();
-  /* urn fill */
-  if((inc(lo,'urn')&&(inc(lo,'fill')||inc(lo,'water')||inc(lo,'switch')||inc(lo,'turn on')||inc(lo,'boil')))||
-     (inc(lo,'fill')&&inc(lo,'water'))){endChunk();cmdFillUrn();return;}
+  /* open the urn / lift its lid — points to the mug-and-tap method, doesn't fill */
+  if((inc(lo,'open')||inc(lo,'lift'))&&(inc(lo,'urn')||inc(lo,'lid'))){endChunk();cmdOpenUrn();return;}
+  /* fill the urn — by carrying water from the tap in the mug */
+  if((inc(lo,'mug')&&(inc(lo,'tap')||inc(lo,'sink')||inc(lo,'fill')||inc(lo,'water')))||
+     (inc(lo,'fill')&&inc(lo,'mug'))||
+     (inc(lo,'urn')&&(inc(lo,'fill')||inc(lo,'water')||inc(lo,'switch')||inc(lo,'turn on')||inc(lo,'boil')))||
+     (inc(lo,'fill')&&(inc(lo,'water')||inc(lo,'tap')||inc(lo,'sink')))){endChunk();cmdFillUrn();return;}
   /* cocoa make */
   if((inc(lo,'cocoa')&&(inc(lo,'make')||inc(lo,'mug')||inc(lo,'milk')||inc(lo,'urn')))||
      (inc(lo,'make')&&inc(lo,'drink'))){endChunk();cmdMakeCocoa();return;}
@@ -1434,7 +1462,7 @@ function cmdHelp(){
    ['TAKE <item>','Pick something up.'],['DROP <item>','Put something down.'],
    ['INVENTORY (I)','List what you\'re carrying.'],['GO <direction>','Move. N, S, E, W, UP, DOWN, or natural phrases like GO TO STAGE DOOR.'],
    ['EXITS','List the ways out of here.'],['WHERE AM I','Your location and exits.'],
-   ['USE <thing> / FILL URN / MAKE COCOA','Use, combine, or operate things.'],
+   ['USE <thing> / FILL MUG / MAKE COCOA','Use, combine, or operate things. (The urn fills by mug from the sink.)'],
    ['FIT FUSE / GET DRESSED','Solve specific puzzle steps.'],
    ['TALK TO <person>','Speak to someone. Always worth doing more than once.'],
    ['GIVE <item> TO <person>','Hand something over.'],
@@ -1548,7 +1576,7 @@ function cmdHint(){
       op('You need milk next, and Brenda in the BOX OFFICE has the only bottle - she\'ll swap it for help with her seating plan. Head there.','system');endChunk();return;
     }
     if(!G.flags.urn_filled){
-      op('You\'ve (or will have) the milk. Now the urn: in the green room, FILL URN to get it heating.','system');endChunk();return;
+      op('You\'ve (or will have) the milk. Now the urn: in the green room it has to be filled by hand from the sink. TAKE the mug off the shelf, then FILL MUG (or USE MUG ON TAP) to fill the urn and get it heating.','system');endChunk();return;
     }
     if(!G.flags.cocoa_made){
       op('Urn\'s heating and you\'ve milk. In the green room, MAKE COCOA.','system');endChunk();return;
@@ -1869,7 +1897,8 @@ function parse(raw){
   }
 
   /* dedicated puzzle verbs (before quirky/generic) */
-  if(inc(cmd,'fill')&&inc(cmd,'urn')||cmd==='fill urn'){cmdFillUrn();return;}
+  if((inc(cmd,'open')||inc(cmd,'lift'))&&(inc(cmd,'urn')||(inc(cmd,'lid')&&G.location==='green_room'))){cmdOpenUrn();return;}
+  if((inc(cmd,'fill')&&inc(cmd,'mug'))||(inc(cmd,'mug')&&(inc(cmd,'tap')||inc(cmd,'sink')))||(inc(cmd,'fill')&&(inc(cmd,'urn')||inc(cmd,'tap')||inc(cmd,'sink')))||cmd==='fill urn'||cmd==='fill mug'){cmdFillUrn();return;}
   if((inc(cmd,'make')&&inc(cmd,'cocoa'))||cmd==='make cocoa'){cmdMakeCocoa();return;}
   if((inc(cmd,'fit')&&inc(cmd,'fuse'))||cmd==='fit fuse'||(inc(cmd,'put')&&inc(cmd,'fuse'))||(inc(cmd,'replace')&&inc(cmd,'fuse'))){cmdFitFuse();return;}
   if(cmd==='get dressed'||cmd==='dress'||(inc(cmd,'put on')&&inc(cmd,'gown'))||(inc(cmd,'wear')&&inc(cmd,'gown'))||(inc(cmd,'wear')&&inc(cmd,'costume'))){cmdGetDressed();return;}
