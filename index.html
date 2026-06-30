@@ -942,6 +942,9 @@ function findNPC(frag){
 
 /* ── ROOM DESCRIPTION ── */
 function descRoom(force){
+  /* When everything's solved, being on the stage IS the finale. Both walking on
+     and LOOKing while on it should go straight to the show - no TAKE MARK needed. */
+  if(G.location==='stage'&&G.flags.show_ready&&!G.gameOver){doWin();return;}
   const room=ROOMS[G.location];
   const isNew=!G.visited.has(G.location);if(isNew)G.visited.add(G.location);
   startChunk(room.name);
@@ -1554,8 +1557,8 @@ function cmdHint(){
   startChunk('Hint');
   /* Endgame */
   if(G.flags.show_ready){
-    if(G.location==='stage')op('You\'re on the lit stage, dressed, word-perfect, the brooch over your heart. There is nothing left to fetch. Take your place - try TAKE MARK, or just LOOK and let it happen.','system');
-    else op('Lines, costume, lights - all done. Beginners have been called. Get to the STAGE (through the prompt corner) and take your place.','system');
+    if(G.location==='stage')op('You\'re on the lit stage, dressed, word-perfect, the brooch over your heart. There is nothing left to do but let it happen - try LOOK.','system');
+    else op('Lines, costume, lights - all done. Beginners have been called. Just get to the STAGE (through the prompt corner) and the show begins.','system');
     endChunk();return;
   }
   /* TIER 1 — gentle, room-local nudge if you're somewhere with unfinished local business
