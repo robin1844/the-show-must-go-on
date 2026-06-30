@@ -126,7 +126,7 @@ const ITEMS={
   prop_key:{name:'prop-store key',art:'the',room:null,
     desc:`A heavy iron key with a paper tag reading "PROP STORE - DO NOT LOSE - THIS MEANS YOU". Albert the stage-door keeper surrendered it with the air of a man handing over his firstborn.`},
   mascot:{name:'Mr Pemberton',art:null,room:null,
-    desc:`Mr Pemberton: the Marwood Empire's beloved mascot, a stuffed ginger theatre cat of immense age and questionable taxidermy. One glass eye is green, the other is a shirt button. He has "watched" every opening night since 1931 from his cushion in the wings, and the Director genuinely believes the show cannot succeed without him present. He is balding, lopsided, and frankly magnificent.`},
+    desc:`Mr Pemberton: the Marwood Empire's beloved mascot, a stuffed ginger theatre cat of immense age and questionable taxidermy. One glass eye is green, the other is a shirt button. He has "watched" every opening night since time immemorial from his cushion in the wings, and the Director genuinely believes the show cannot succeed without him present. He is balding, lopsided, and frankly magnificent.`},
   spare_fuse:{name:'spare fuse',art:'a',room:null,
     desc:`A chunky old ceramic fuse, the cartridge kind, scavenged from the prop store's "ELECTRICAL - PROBABLY" drawer. Exactly the sort of thing a dead lighting board might be missing.`},
   threader:{name:'silver needle-threader',art:'a',room:null,
@@ -134,9 +134,11 @@ const ITEMS={
   milk:{name:'bottle of milk',art:'a',room:null,
     desc:`A small glass bottle of milk, cold from the box-office fridge. Brenda parted with it on the strict understanding that it is "for the keeper's cocoa, not for any funny business." You're not sure what funny business one could get up to with a third of a pint of milk, but you respect her vigilance.`},
   cocoa:{name:'mug of cocoa',art:'a',room:null,
-    desc:`A steaming mug of cocoa, made in the green room with reconditioned urn-water and Brenda's milk. It says WORLD'S OKAYEST STAGEHAND on the side. The single most powerful bargaining chip in the building.`},
+    desc:`A steaming mug of cocoa, made in the green room with reconditioned urn-water and Brenda's milk. It says WORLD'S MOST MEDIOCRE UNDERSTUDY on the side. The single most powerful bargaining chip in the building.`},
   the_book:{name:"the Director's Book",art:null,room:null,
     desc:`The Director's prompt Book: the master copy of "A Parlour in Petersfield", fat with decades of pencilled blocking, cuts, and increasingly desperate marginalia ("WHY", "slower", "is this funny? check"). Crucially, Act Three is complete and legible. With this in your hands, you finally know the whole part.`},
+  star_gown:{name:'midnight-blue gown',art:'the',room:null,
+    desc:`Cordelia Vane's midnight-blue evening gown, freed from its rail and folded over your arm. It is, as it stands, far too big for you - it wants taking in before it'll fit. Mrs Tassel in the wardrobe is the woman for that.`},
   brooch:{name:'paste-diamond brooch',art:'a',room:null,
     desc:`Cordelia Vane's brooch: a great glittering paste-diamond starburst, the kind of thing that looks like the crown jewels from row Z and like a Christmas cracker from row A. She pressed it on you "for luck, darling - it's seen more first nights than God." It is, you realise, her version of a rabbit's foot.`},
   /* ── FIXED SCENERY: DRESSING ROOM ── */
@@ -211,8 +213,8 @@ const ITEMS={
   cocoa_tin:{name:'tin of cocoa',art:'a',room:'green_room',fixed:true,
     desc:`A dented tin of cocoa powder on the green-room shelf, survivor of the economies because nobody likes cocoa quite enough to finish it. There's plenty left. With hot water and a drop of milk, this becomes the most valuable substance in the building.`,
     take_resp:`No need to pocket the whole tin - it lives by the urn. The cocoa-making happens here, once you've got water heating and some milk.`},
-  empty_mug:{name:'"WORLD\'S OKAYEST UNDERSTUDY" mug',art:'a',room:'green_room',
-    desc:`A chipped mug from the green-room shelf, reading WORLD'S OKAYEST UNDERSTUDY in fading letters. "Okayest" - not best, not worst, just... present, and acceptable, and reliably overlooked. It was a Secret Santa gift three years ago and you have never been entirely sure whether it was a kindness or a diagnosis. Either way, it's clearly yours, and it'll do nicely for a hot drink when the time comes.`,
+  empty_mug:{name:'"WORLD\'S MOST MEDIOCRE UNDERSTUDY" mug',art:'a',room:'green_room',
+    desc:`A chipped mug from the green-room shelf, reading WORLD'S MOST MEDIOCRE UNDERSTUDY in fading letters. "Most Mediocre" - not best, not worst, just... present, and acceptable, and reliably overlooked. It was a Secret Santa gift three years ago and you have never been entirely sure whether it was a kindness or a diagnosis. Either way, it's clearly yours, and it'll do nicely for a hot drink when the time comes.`,
     use_resp:`It's a mug. Its destiny is to hold cocoa. Get the urn going and the milk sorted, and it'll have its big moment.`},
   /* ── FIXED SCENERY: WARDROBE ── */
   costume_rails:{name:'costume rails',art:'the',room:'wardrobe',fixed:true,
@@ -277,7 +279,9 @@ const ITEMS={
   locked_costume:{name:'star costume',art:'the',room:'diva_room',fixed:true,
     desc:()=>G.flags.has_costume
       ?`The empty costume bag swings on the rail; the gown itself is on you now, taken in with three deft safety-pinned tucks by Mrs Tassel. You are, at last, dressed for the part.`
-      :`The lead's costume for Act One, sealed in a garment bag on a locked rail: a midnight-blue evening gown that probably cost more than your annual wage as an understudy. This is what you'd have to wear to go on. The rail's little lock is the gentle, ornamental kind - the sort a sufficiently clever person with a sufficiently sturdy pin might have a view about - but you'd want Wardrobe's blessing before laying a finger on Cordelia's gown.`},
+      :G.inv.includes('star_gown')||G.flags.costume_freed
+      ?`The rail stands open, its little padlock unpicked, the garment bag empty and swinging. The gown is over your arm now - it just needs taking in to fit. Mrs Tassel in the wardrobe is the woman for that.`
+      :`The lead's costume for Act One, sealed in a garment bag and padlocked to a rail: a midnight-blue evening gown that probably cost more than your annual wage as an understudy. This is what you'd have to wear to go on. The padlock is the small, flimsy, ornamental kind - the sort you could unpick with a sturdy pin if you knew the trick (USE PIN ON LOCK) - but you'd want Wardrobe's blessing, and Cordelia's, before laying a finger on her gown.`},
   half_note:{name:'half-written note',art:'a',room:'diva_room',fixed:true,
     desc:`A sheet of the theatre's headed paper on the dressing table, weighted with a powder compact. In Cordelia's grand looping hand it begins: "To the Company - By the time you read this I shall have - " and then stops, the pen abandoned mid-flourish. It is not, you realise with a small cold shock, a suicide note. It's a resignation note. She means to walk out. She means to never go on again. And she couldn't even finish telling you why.`,
     take_resp:`You don't take the note. Whatever it is, it's hers to finish or not.`},
@@ -454,7 +458,7 @@ const ROOMS={
       'biscuit tin':ITEMS.biscuit_tin.desc,
       biscuits:ITEMS.biscuit_tin.desc,
       tin:ITEMS.cocoa_tin.desc,
-      mugs:`A row of mismatched mugs on hooks: one from a 1979 panto, chipped; one that simply says NO in stern capitals, which belongs to the Stage Manager and which no one has ever dared use; and a faded one reading WORLD'S OKAYEST UNDERSTUDY - "okayest", note, not best or worst - which is, unmistakably, yours. You could TAKE the okayest-understudy mug; it'll want filling before the night's out.`,
+      mugs:`A row of mismatched mugs on hooks: one from a 1979 panto, chipped; one that simply says NO in stern capitals, which belongs to the Stage Manager and which no one has ever dared use; and a faded one reading WORLD'S MOST MEDIOCRE UNDERSTUDY - "most mediocre", note, not best or worst - which is, unmistakably, yours. You could TAKE the most-mediocre-understudy mug; it'll want filling before the night's out.`,
       noticeboard:`The green-room noticeboard, an archaeology of company life: a rehearsal rota three revisions out of date, a stern notice about washing one's own mug, a flyer for a colleague's one-person show about Vita Sackville-West, and a cartoon of the Director weeping, captioned "OPENING NIGHT" - which is either prophetic or just observant.`,
       counter:`The counter where the urn presides, sticky with the ghosts of a thousand teas, ringed with mug-stains like the growth rings of a sad tree. The cocoa tin and the mugs live up here, within easy reach of the urn.`,
     },
@@ -462,10 +466,18 @@ const ROOMS={
   },
   wardrobe:{
     name:"The Wardrobe",
-    desc_l:`The wardrobe department: a long, low, gloriously cluttered room that smells of mothballs, face powder, and glamour gone slightly off. Rails of costumes recede into fragrant gloom; a headless tailor's dummy stands sentinel; a flat-iron heats on its stand.\n\nMrs Tassel, the wardrobe mistress, presides over it all from a chair by the work-table, a half-threaded needle held up to the light and a expression of mounting despair upon her kindly face. Something, clearly, is wrong - and it is small, and silver, and needle-threader-shaped.\n\nThe green room is back to the east.`,
-    desc_s:`The wardrobe: rails of costumes, headless Deirdre the dummy, a hot iron, Mrs Tassel despairing over a needle she can't thread. The green room lies east.`,
+    desc_l:()=>{
+      let tassel;
+      if(G.flags.has_costume)tassel=`Mrs Tassel, the wardrobe mistress, presides over it all from a chair by the work-table, beaming over her handiwork now that she's fitted you into Cordelia's gown - and dabbing, when she thinks you aren't looking, at her eyes.`;
+      else if(G.inv.includes('star_gown'))tassel=`Mrs Tassel, the wardrobe mistress, presides over it all from a chair by the work-table, needle threaded and ready, her hands fairly itching to get at the gown over your arm and take it in to fit you.`;
+      else if(G.flags.threader_returned)tassel=`Mrs Tassel, the wardrobe mistress, presides over it all from a chair by the work-table, her silver threader back where it belongs and her needle threaded at last - ready and waiting for you to bring her Cordelia's gown.`;
+      else tassel=`Mrs Tassel, the wardrobe mistress, presides over it all from a chair by the work-table, a half-threaded needle held up to the light and an expression of mounting despair upon her kindly face. Something, clearly, is wrong - and it is small, and silver, and needle-threader-shaped.`;
+      return `The wardrobe department: a long, low, gloriously cluttered room that smells of mothballs, face powder, and glamour gone slightly off. Rails of costumes recede into fragrant gloom; a headless tailor's dummy stands sentinel; a flat-iron heats on its stand.\n\n${tassel}\n\nThe green room is back to the east, and a door opens onto the corridor to the south.`;
+    },
+    desc_s:()=>`The wardrobe: rails of costumes, headless Deirdre the dummy, a hot iron, ${G.flags.has_costume?'Mrs Tassel beaming over the gown she\'s just fitted to you':G.inv.includes('star_gown')?'Mrs Tassel reaching for the gown to take it in':G.flags.threader_returned?'Mrs Tassel threaded up and ready for Cordelia\'s gown':'Mrs Tassel despairing over a needle she can\'t thread'}. The green room lies east, the corridor south.`,
     exits:{
-      east:'green_room',e:'green_room','green room':'green_room',corridor:'green_room','out':'green_room','back':'green_room',
+      east:'green_room',e:'green_room','green room':'green_room','out':'green_room','back':'green_room',
+      south:'corridor',s:'corridor',corridor:'corridor',
     },
     feats:{
       'costume rails':ITEMS.costume_rails.desc,
@@ -507,7 +519,7 @@ const ROOMS={
   },
   box_office:{
     name:"The Box Office",
-    desc_l:()=>`The box office, on the public side of the building but reachable backstage through a connecting door - a cramped booth of ticket rolls, a card machine that works on alternate Tuesdays, and a window onto the foyer where, even now, late-comers are being gently refused.\n\nBrenda, the box-office manager, is hunched over a vast seating plan in an attitude of pure suffering, holding it at arm's length and then very close, defeated by the small print. A mini-fridge hums under the counter. The cash drawer is shut, counted, and watched. A vase of artificial flowers provides the room's single dab of unconvincing cheer.\n\nThe corridor is back through the connecting door, west.`,
+    desc_l:()=>`The box office, on the public side of the building but reachable backstage through a connecting door - a cramped booth of ticket rolls, a card machine that works on alternate Tuesdays, and a window onto the foyer where, even now, late-comers are being gently refused.\n\n${G.flags.brenda_helped?'Brenda, the box-office manager, works briskly through her seating plan now, the VIP party safely placed and her good humour restored.':'Brenda, the box-office manager, is hunched over a vast seating plan in an attitude of pure suffering, holding it at arm\'s length and then very close, defeated by the small print.'} A mini-fridge hums under the counter. The cash drawer is shut, counted, and watched. A vase of artificial flowers provides the room's single dab of unconvincing cheer.\n\nThe corridor is back through the connecting door, west.`,
     desc_s:()=>`Brenda's box office: the big seating plan she ${G.flags.brenda_helped?'can read again at last':'can\'t read for the small print'}, the humming mini-fridge with its precious milk, the watched cash drawer, a vase of fake flowers. Corridor's west.`,
     exits:{
       west:'corridor',w:'corridor',corridor:'corridor','out':'corridor','back':'corridor','in':'corridor',
@@ -552,8 +564,8 @@ const ROOMS={
   },
   diva_room:{
     name:"Miss Vane's Dressing Room",
-    desc_l:()=>`The star dressing room: everything yours is not. Spacious, warm, lit by a mirror whose bulbs all work, hung with a gold star on the door and fifteen years of Cordelia Vane on the walls. A red velvet chaise. A dressing table crowded with powders and a half-written note. The air is thick with her scent - tuberose and cigarettes and something underneath that you only now identify as fear.\n\n${G.flags.knows_vane_hiding?'And Cordelia herself is here: not vanished, not abducted, but folded into the corner of the chaise in her dressing gown, very small, her great dark eyes fixed on you.':'The room is empty - but the still-warm dent in the chaise, and the half-finished note, tell you that wherever the leading lady is, she was here moments ago, and may not be far.'}\n\nThe corridor lies back through the door, west.`,
-    desc_s:()=>`Miss Vane's star dressing room: chaise, a wall of her own photographs, the locked star costume, a half-written note. ${G.flags.knows_vane_hiding?'Cordelia is folded into the corner of the chaise, watching you.':'Empty - but the warm chaise says she was here moments ago.'} Corridor's west.`,
+    desc_l:()=>`The star dressing room: everything yours is not. Spacious, warm, lit by a mirror whose bulbs all work, hung with a gold star on the door and fifteen years of Cordelia Vane on the walls. A red velvet chaise. A dressing table crowded with powders and a half-written note. And on a rail against the wall, secured by a somewhat flimsy-looking padlock, hangs the gown of the leading lady herself - a costume you're almost certainly going to need to put on before you head on stage. The air is thick with her scent - tuberose and cigarettes and something underneath that you only now identify as fear.\n\n${G.flags.knows_vane_hiding?'And Cordelia herself is here: not vanished, not abducted, but folded into the corner of the chaise in her dressing gown, very small, her great dark eyes fixed on you.':'The room is empty - but the still-warm dent in the chaise, and the half-finished note, tell you that wherever the leading lady is, she was here moments ago, and may not be far.'}\n\nThe corridor lies back through the door, west.`,
+    desc_s:()=>`Miss Vane's star dressing room: chaise, a wall of her own photographs, the star gown padlocked to a rail (you'll need it on stage), a half-written note. ${G.flags.knows_vane_hiding?'Cordelia is folded into the corner of the chaise, watching you.':'Empty - but the warm chaise says she was here moments ago.'} Corridor's west.`,
     exits:{
       west:'corridor',w:'corridor',corridor:'corridor','out':'corridor','back':'corridor','leave':'corridor',
     },
@@ -654,7 +666,7 @@ const NPCS={
         return '__GIVE_MASCOT__';
       }
       return [
-        `"I can't think about lines!" wails Mr Bellweather into the desk. "I can't think about anything! Find Pemberton! A theatre without its cat is a theatre without its SOUL! He's our luck - he's been our luck since 1931 - and without him on his cushion I cannot, I WILL not, raise that curtain." He peers up. "He's probably in the prop store. It got locked. Everything's locked. Everything's lost. Bring him back to me and I might - I might - believe we have a chance."`,
+        `"I can't think about lines!" wails Mr Bellweather into the desk. "I can't think about anything! Find Pemberton! A theatre without its cat is a theatre without its SOUL! He's our luck - he's been our luck since time immemorial - and without him on his cushion I cannot, I WILL not, raise that curtain." He peers up. "He's probably in the prop store. It got locked. Everything's locked. Everything's lost. Bring him back to me and I might - I might - believe we have a chance."`,
         `"The Book?" He clutches it closer. "This is the only whole copy of the play in the building and I am NOT letting it go while we're doomed. Bring me Pemberton. Give me one reason to think tonight isn't a catastrophe, and it's yours, and the part with it. Until then -" he shudders "- until then there is no show, so there are no lines, so there is no Book."`,
         `Mr Bellweather has his head in his hands. "Reginald," he is muttering. "Remember Reginald." Nobody remembers Reginald. It doesn't seem the moment to point this out.`
       ];
@@ -941,8 +953,8 @@ function descRoom(force){
       if(nid==='prompter')op('Miss Quill keeps her still watch at the prompt desk.','npc');
       else if(nid==='director')op(G.flags.has_book?'Mr Bellweather slumps at his desk, hollowed out but calm.':'Mr Bellweather is collapsed over his desk, clutching the Book.','npc');
       else if(nid==='keeper')op('Albert watches you over his racing paper from the lodge.','npc');
-      else if(nid==='wardrobe')op('Mrs Tassel despairs over an unthreadable needle.','npc');
-      else if(nid==='brenda')op('Brenda wrestles with the seating plan, defeated by the small print.','npc');
+      else if(nid==='wardrobe')op(G.flags.has_costume?'Mrs Tassel beams over the gown she\'s just fitted to you.':G.inv.includes('star_gown')?'Mrs Tassel reaches eagerly for the gown over your arm.':G.flags.threader_returned?'Mrs Tassel sits threaded-up and ready, waiting for Cordelia\'s gown.':'Mrs Tassel despairs over an unthreadable needle.','npc');
+      else if(nid==='brenda')op(G.flags.brenda_helped?'Brenda works happily through the seating plan, the crisis behind her.':'Brenda wrestles with the seating plan, defeated by the small print.','npc');
       else if(nid==='vane'&&G.flags.knows_vane_hiding)op('Cordelia Vane is folded into the corner of the chaise, watching you.','npc');
     }
   });
@@ -1017,7 +1029,7 @@ function cmdExamine(target){
     op('There is no clock backstage you can see, but you can feel the time the way you feel weather coming: the audience settling, the orchestra finishing its tuning, the particular thickening of the air that means curtain-up is minutes off. Not long. Not long at all.','system');endChunk();return;
   }
   if(inc(t,'pemberton')||inc(t,'cat')||inc(t,'mascot')){
-    if(G.inv.includes('mascot')){op('Mr Pemberton rides in the crook of your arm, lopsided and serene, his one green glass eye and one button eye surveying the building he has watched over since 1931.','system');}
+    if(G.inv.includes('mascot')){op('Mr Pemberton rides in the crook of your arm, lopsided and serene, his one green glass eye and one button eye surveying the building he has watched over since time immemorial.','system');}
     else op('Mr Pemberton, the stuffed mascot cat, isn\'t with you - he\'s shut in the prop store, which is the whole trouble. The Director cannot raise the curtain without his luck on its cushion in the wings.','system');
     endChunk();return;
   }
@@ -1116,7 +1128,7 @@ function cmdMakeCocoa(){
   if(!G.flags.urn_filled){op('The urn\'s cold and empty. Fill it and switch it on first - try FILL URN.','error');endChunk();return;}
   if(!G.inv.includes('milk')){op('You\'ve got the urn heating and the cocoa tin to hand, but no milk - and Albert was very clear that black cocoa is "a punishment, not a treat". You need a drop of milk. The box office has the only milk in the building.','error');endChunk();return;}
   var usedOwnMug=G.inv.includes('empty_mug');
-  op('The urn has come to the boil. You spoon cocoa from the tin into a mug'+(usedOwnMug?' - your own WORLD\'S OKAYEST UNDERSTUDY one, as it happens':'')+', draw off a measure of scalding water, and add a generous slug of Brenda\'s milk.');
+  op('The urn has come to the boil. You spoon cocoa from the tin into a mug'+(usedOwnMug?' - your own WORLD\'S MOST MEDIOCRE UNDERSTUDY one, as it happens':'')+', draw off a measure of scalding water, and add a generous slug of Brenda\'s milk.');
   op('You stir. It is, even by the standards of a building that runs on tea, a magnificent mug of cocoa.','success');
   G.inv=G.inv.filter(id=>id!=='milk'&&id!=='empty_mug');ITEMS.milk.room=null;ITEMS.empty_mug.room=null;
   G.inv.push('cocoa');ITEMS.cocoa.room=null;G.flags.cocoa_made=true;
@@ -1144,13 +1156,13 @@ function cmdPickCostume(){
   startChunk();
   if(G.location!=='diva_room'){op('The locked costume is in Miss Vane\'s dressing room.','error');endChunk();return;}
   if(G.flags.has_costume){op('You\'re already wearing the gown - Mrs Tassel saw to that. No need to pick any locks now.','system');endChunk();return;}
+  if(G.flags.costume_freed){op('You\'ve already freed the gown - it\'s over your arm. Take it to Mrs Tassel in the wardrobe to be fitted.','system');endChunk();return;}
   if(!G.flags.knows_vane_hiding){op('It feels wrong to start forcing locks in here while the leading lady is missing. Have a proper look round the room first - something doesn\'t add up.','error');endChunk();return;}
   if(!G.flags.vane_blessing){op('You could force the little rail lock with your safety pin - but this is Cordelia\'s gown, and Cordelia is sitting right there. Forcing it past her would be a low thing to do. Talk to her first. She may yet give it freely.','error');endChunk();return;}
   if(!G.flags.threader_returned){op('Cordelia\'s given her blessing, but you promised Mrs Tassel you\'d not butcher one of her costumes unsupervised - and the gown needs taking in to fit you anyway. Get Mrs Tassel her needle-threader so she can do the job properly.','error');endChunk();return;}
   /* Got blessing + threader returned: go to wardrobe to be dressed */
-  op('You free the gown from the locked rail with a deft twist of the safety pin - Mrs Tassel showed you the trick - and gather the midnight-blue silk over your arm. It\'s far too big for you as it stands. Time to get to Wardrobe and have it taken in.','success');
-  G.flags.costume_freed=true;addScore(6,'freed the star costume');
-  op('Take the gown to Mrs Tassel in the wardrobe to be dressed. Try GET DRESSED there, or just talk to her.','system');
+  op('You free the gown from the locked rail with a deft twist of the safety pin - Mrs Tassel showed you the trick - and gather the midnight-blue silk over your arm. It\'s far too big for you as it stands. It will need taking in before it fits.','success');
+  G.flags.costume_freed=true;G.inv.push('star_gown');ITEMS.star_gown.room=null;addScore(6,'freed the star costume');
   upStatus();endChunk();
 }
 
@@ -1167,6 +1179,7 @@ function cmdGetDressed(){
   op('Mrs Tassel takes the midnight-blue gown reverently, clucks over the fit, and goes to work: three pins, two tucks, a flashing needle (threaded, at last, with her recovered silver friend), and a great deal of muttering about "the state of the hem".');
   op('"There," she says, stepping back, her eyes suddenly bright. "Oh, love. Look at you. You look like the leading lady. Because tonight you ARE." She blows her nose loudly. "Cordelia said I\'d cry. Don\'t tell her she was right."','npc');
   op('You catch yourself in the wardrobe mirror: gowned, transformed, unmistakably the mistress of the house. The grey understudy is gone.','success');
+  G.inv=G.inv.filter(id=>id!=='star_gown');ITEMS.star_gown.room=null;
   G.flags.has_costume=true;addScore(10,'were dressed for the part by Mrs Tassel');
   checkShowReady();
   upStatus();endChunk();
@@ -1182,10 +1195,12 @@ function cmdUse(raw){
      (inc(lo,'make')&&inc(lo,'drink'))){endChunk();cmdMakeCocoa();return;}
   /* fuse fit */
   if(inc(lo,'fuse')||(inc(lo,'fix')&&(inc(lo,'board')||inc(lo,'light')))){endChunk();cmdFitFuse();return;}
-  /* costume pin trick */
-  if((inc(lo,'pin')&&(inc(lo,'lock')||inc(lo,'rail')||inc(lo,'costume')||inc(lo,'gown')))||
-     (inc(lo,'pick')&&(inc(lo,'lock')||inc(lo,'rail')))||
-     (inc(lo,'force')&&(inc(lo,'lock')||inc(lo,'rail')||inc(lo,'costume')))){endChunk();cmdPickCostume();return;}
+  /* costume pin trick — explicit verb+noun, or (since this is reached via a use/unpick/force verb) a bare lock/rail/padlock reference */
+  if((inc(lo,'pin')&&(inc(lo,'lock')||inc(lo,'rail')||inc(lo,'costume')||inc(lo,'gown')||inc(lo,'dress')||inc(lo,'padlock')))||
+     (inc(lo,'pick')&&(inc(lo,'lock')||inc(lo,'rail')||inc(lo,'padlock')))||
+     (inc(lo,'unpick')&&(inc(lo,'lock')||inc(lo,'rail')||inc(lo,'gown')||inc(lo,'dress')||inc(lo,'padlock')))||
+     (inc(lo,'force')&&(inc(lo,'lock')||inc(lo,'rail')||inc(lo,'costume')||inc(lo,'gown')||inc(lo,'dress')||inc(lo,'padlock')))||
+     (inc(lo,'lock')||inc(lo,'padlock')||(inc(lo,'rail')&&!inc(lo,'fly')))){endChunk();cmdPickCostume();return;}
   /* give cocoa to albert / milk dependency handled via give */
   if(inc(lo,'cocoa')&&G.location==='stage_door'){endChunk();cmdGiveCocoa();return;}
   /* flavour item uses */
@@ -1216,7 +1231,7 @@ function cmdGiveCocoa(){
 function cmdGiveThreader(){
   startChunk('Mrs Tassel');
   op('You hold out the little silver needle-threader. Mrs Tassel actually gasps. "My LADY! Oh, you marvel, where was she?" She snatches it, kisses it - kisses it - and threads her needle in one triumphant motion. "Right. NOW we\'re in business."','npc');
-  op('"You bring me Cordelia\'s gown - free it off that rail, the pin-trick, mind, don\'t force it like a burglar - and I\'ll have it taken in to fit you before you can say first-night nerves. And -" she taps her nose "- I\'ll show you the trick of that little lock myself, so you don\'t go wrecking the rail. Off you go."','npc');
+  op('"Now then. You\'ll want Cordelia\'s gown, won\'t you - and it\'s padlocked to that rail in her room. Here\'s the trick: take a good sturdy pin to that little lock and unpick it - gentle, mind, like coaxing a thread through a needle, not breaking in. USE PIN ON LOCK and the gown\'s yours. Bring it to me and I\'ll take it in to fit you before you can say first-night nerves. Off you go."','npc');
   G.inv=G.inv.filter(id=>id!=='threader');ITEMS.threader.room=null;G.flags.threader_returned=true;
   addScore(7,'returned Mrs Tassel\'s needle-threader');upStatus();endChunk();
 }
@@ -1227,7 +1242,7 @@ function cmdGiveMilk(){
 function cmdGiveMascot(){
   startChunk('Mr Bellweather');
   op('You hold out Mr Pemberton. The Director looks up. His face does something complicated.');
-  op('"Pemberton," he whispers. He takes the moth-eaten cat in both hands as if it were the Turin Shroud, presses it briefly to his chest, then sets it tenderly on the cushion in the wings where it has sat for every opening since 1931. "There. THERE. Oh, you good and faithful animal." He turns to you, and something has come back into him - some of the old grandeur, some of the old nerve. "If Pemberton\'s back," he says, "then the luck\'s back, and if the luck\'s back, then by God we have a SHOW." ','npc');
+  op('"Pemberton," he whispers. He takes the moth-eaten cat in both hands as if it were the Turin Shroud, presses it briefly to his chest, then sets it tenderly on the cushion in the wings where it has sat for every opening since time immemorial. "There. THERE. Oh, you good and faithful animal." He turns to you, and something has come back into him - some of the old grandeur, some of the old nerve. "If Pemberton\'s back," he says, "then the luck\'s back, and if the luck\'s back, then by God we have a SHOW." ','npc');
   op('He looks at the Book clutched in his hand as though noticing it for the first time, and holds it out to you. "Act Three\'s all there. Every line, every move. Learn it on your feet - you\'ve got minutes, not hours. You can do this. I directed your audition three years ago, you know. I always said they should have - well. Never mind what I said. GO."','npc');
   G.inv=G.inv.filter(id=>id!=='mascot');ITEMS.mascot.room=null;
   G.inv.push('the_book');ITEMS.the_book.room=null;G.flags.has_book=true;
@@ -1287,7 +1302,11 @@ function cmdTalk(target){
   if(arr==='__GIVE_MASCOT__'){endChunk();cmdGiveMascot();return;}
   if(arr==='__GIVE_THREADER__'){endChunk();cmdGiveThreader();return;}
   if(arr==='__DRESS_PROMPT__'){
-    op('"You\'ve got my threader back, bless you," says Mrs Tassel, "so I\'m ready when you are. Bring me Cordelia\'s gown - freed off that rail nice and gentle - and I\'ll dress you. Try GET DRESSED once you\'ve got it."','npc');
+    if(G.inv.includes('star_gown')){
+      op('"There\'s the gown!" cries Mrs Tassel, reaching for it. "Got it off that rail nice and gentle, I hope. Right - hold still and let me take it in. GET DRESSED, love, and we\'ll have you a leading lady in no time."','npc');
+    }else{
+      op('"You\'ve got my threader back, bless you," says Mrs Tassel, "so I\'m ready when you are. Bring me Cordelia\'s gown - freed off that rail nice and gentle - and I\'ll dress you."','npc');
+    }
     endChunk();return;
   }
   if(arr==='__GIVE_MILK__'){
@@ -1566,7 +1585,7 @@ function cmdHint(){
         op('Cordelia is hiding in her own room, frightened. Don\'t force her gown - TALK TO CORDELIA, more than once. Hear her out, and she may give it freely.','system');endChunk();return;
       }
       if(!G.flags.costume_freed){
-        op('You\'ve her blessing and Mrs Tassel\'s ready. Free the gown from the locked rail in Cordelia\'s room - USE PIN ON LOCK (the pin-trick Mrs Tassel taught you).','system');endChunk();return;
+        op('Try freeing the gown by unpicking the lock on the rail with something you already have.','system');endChunk();return;
       }
       op('Take the freed gown to Mrs Tassel in the wardrobe and GET DRESSED.','system');endChunk();return;
     }
@@ -1883,14 +1902,14 @@ function parse(raw){
   if(tkM){cmdTake(tkM[1].trim());return;}
   var drM=cmd.match(/^(?:drop|put down|set down|discard|leave|abandon)\s+(.+)$/);
   if(drM){cmdDrop(drM[1].trim());return;}
-  var usM=cmd.match(/^(?:use|combine|apply|operate|try using|employ)\s+(.+)$/);
+  var usM=cmd.match(/^(?:use|combine|apply|operate|try using|employ|unpick|undo|unlock|jimmy|prise|prize|pry)\s+(.+)$/);
   if(usM){cmdUse(usM[1].trim());return;}
   var tlM=cmd.match(/^(?:talk|speak|chat|converse|ask|greet|address|hail|say hello to)\s+(?:to\s+|with\s+)?(.+)$/);
   if(tlM){cmdTalk(tlM[1].trim());return;}
   if(['talk','speak','chat'].includes(cmd)){cmdTalk('');return;}
   if(/^(?:give|show|offer|present|hand|return)\s+/.test(cmd)){cmdGive(raw);return;}
   /* bare 'use pin' etc */
-  if(/^(?:use|combine|fit|put|stick|attach|fix|pick|force)\b/.test(cmd)){cmdUse(cmd);return;}
+  if(/^(?:use|combine|fit|put|stick|attach|fix|pick|force|unpick|undo|unlock)\b/.test(cmd)){cmdUse(cmd);return;}
 
   startChunk();
   op(rnd([
