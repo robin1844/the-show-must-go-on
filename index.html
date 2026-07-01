@@ -543,8 +543,23 @@ const ROOMS={
   },
   prop_store:{
     name:"The Prop Store",
-    desc_l:()=>`The prop store: a long, deep, cavern of a room behind a heavy locked door, where every object the Marwood Empire has ever pretended with goes to wait for its next cue. Floor-to-ceiling shelves groan with the glorious lumber of a hundred shows - skulls, crowns, rubber daggers, a wooden ham. A property coffin stands upright in one corner; a barrel of wax apples gleams in another. A drawer marked "ELECTRICAL - PROBABLY" rattles with mystery.\n\n${G.flags.prop_store_opened?'And there, on his between-shows shelf, sits Mr Pemberton the mascot, dignified and slightly moth-eaten, exactly where the Director feared he\'d be lost.':''}\n\nThe only way out is back west to the corridor.`,
-    desc_s:`The prop store: shelves of theatrical lumber, a coffin, a barrel of fake apples, the electrical drawer, and Mr Pemberton on his shelf. Corridor's west.`,
+    desc_l:()=>{
+      var catLine='';
+      if(!G.inv.includes('mascot')&&ITEMS.mascot.room==='prop_store')
+        catLine='And there, on his between-shows shelf, sits Mr Pemberton the mascot, dignified and slightly moth-eaten, exactly where the Director feared he\'d be lost.\n\n';
+      else if(G.inv.includes('mascot'))
+        catLine='Mr Pemberton\'s shelf sits empty now; he rides in the crook of your arm, awaiting his return to the Director.\n\n';
+      else if(G.flags.has_book)
+        catLine='Mr Pemberton\'s shelf sits empty; you\'ve already carried him back to a grateful Director.\n\n';
+      return `The prop store: a long, deep, cavern of a room behind a heavy locked door, where every object the Marwood Empire has ever pretended with goes to wait for its next cue. Floor-to-ceiling shelves groan with the glorious lumber of a hundred shows - skulls, crowns, rubber daggers, a wooden ham. A property coffin stands upright in one corner; a barrel of wax apples gleams in another. A drawer marked "ELECTRICAL - PROBABLY" rattles with mystery.\n\n${catLine}The only way out is back west to the corridor.`;
+    },
+    desc_s:()=>{
+      var here=[];
+      if(!G.inv.includes('mascot')&&ITEMS.mascot.room==='prop_store')here.push('Mr Pemberton on his shelf');
+      if(ITEMS.threader.room==='prop_store'&&!G.inv.includes('threader'))here.push('a glint in the button tray');
+      var tail=here.length?' '+here.join(' and ')+'.':'';
+      return `The prop store: shelves of theatrical lumber, a coffin, a barrel of fake apples, the electrical drawer.${tail} Corridor's west.`;
+    },
     exits:{
       west:'corridor',w:'corridor',corridor:'corridor','out':'corridor','back':'corridor','leave':'corridor',
     },
@@ -640,12 +655,21 @@ const NPCS={
     rooms:['prompt_corner'],
     examine:`Miss Quill, the prompter: a small, still, grey woman of indeterminate age who has whispered the right word into the silence after a hundred dried-up actors and never once been thanked aloud. She knows this play, and every play, and most of the people, better than they know themselves. She speaks, always, in the low carrying murmur of the prompt corner, which means even her smallest remark sounds like a secret.`,
     greet:[
-      `Miss Quill does not look up from the prompt copy. "You'll be going on, then," she murmurs - not a question. "Three seasons you've waited. Funny how it always comes like this: not with a clean swap, but with the whole building on fire." She turns a page. "You know the first two acts. It's Act Three that'll sink you - and your copy's a tea-stain, I'd put money on it." She is, of course, exactly right.`,
-      `"There's one whole Act Three in this theatre that isn't ruined," Miss Quill whispers, "and that's the Director's Book. The master copy. He's upstairs, clutching it like a drowning man clutches the man trying to save him." A pause. "He won't give it up while he thinks the night's already lost. Give him a reason to hope, and he'll hand it over - he wants this show to happen more than any of us. He's just forgotten that, under the panic."`,
+      ()=>G.flags.has_book
+        ?`Miss Quill glances at the Director's Book under your arm and something like approval crosses her grey face. "You'll be going on, then," she murmurs - not a question. "And you've got the Book already. Good. Act Three won't sink you now." She turns a page. "Quicker off the mark than most. Three seasons of waiting sharpens a body."`
+        :`Miss Quill does not look up from the prompt copy. "You'll be going on, then," she murmurs - not a question. "Three seasons you've waited. Funny how it always comes like this: not with a clean swap, but with the whole building on fire." She turns a page. "You know the first two acts. It's Act Three that'll sink you - and your copy's a tea-stain, I'd put money on it." She is, of course, exactly right.`,
+      ()=>G.flags.has_book
+        ?`"You'll have got the Book off the Director, then," Miss Quill whispers, "which means you talked him back from the ledge - or found his cat, more like. Either way, the whole of Act Three's in your hands now. That's the hard part done." A pause. "Costume and lights left. And whatever's become of Cordelia."`
+        :`"There's one whole Act Three in this theatre that isn't ruined," Miss Quill whispers, "and that's the Director's Book. The master copy. He's upstairs, clutching it like a drowning man clutches the man trying to save him." A pause. "He won't give it up while he thinks the night's already lost. Give him a reason to hope, and he'll hand it over - he wants this show to happen more than any of us. He's just forgotten that, under the panic."`,
       `Miss Quill's eyes flick toward the dark above the stage. "Three things make a show, when it comes to it," she breathes. "The actor knows the part. The actor's dressed for it. And the lights come up. Lose any one and your eight hundred friends out there go home cross. Mind you sort all three." She returns to her page. "I'll be right here. I always am. Nobody ever remembers the prompter until the silence."`
     ],
-    talk:[
-      `"The Book first," murmurs Miss Quill. "Lines before frocks before lamps, if you want my order of service. A dressed actor with no words is just a well-turned-out disaster."`,
+    talk:()=>G.flags.show_ready?[
+      `Miss Quill looks at you properly, for the first time - dressed, word-perfect, the stage lit and waiting. "Well," she breathes. "Look at you. Lines, frock, lamps, all three. There's nothing left for me to prompt." Her grey eyes are suspiciously bright. "Go on. They're waiting. Get to the STAGE and let the curtain rise - I'll be right here in the dark, same as always. Break a leg."`,
+      `"Still here?" murmurs Miss Quill, almost smiling. "Everything's ready and so are you. The only thing left is to walk out there. Go."`
+    ]:[
+      G.flags.has_book
+        ?`"You've the words," murmurs Miss Quill, nodding at the Book. "So: frocks before lamps for the rest, if you want my order of service. A dressed actor with dead lights is just posing in the dark."`
+        :`"The Book first," murmurs Miss Quill. "Lines before frocks before lamps, if you want my order of service. A dressed actor with no words is just a well-turned-out disaster."`,
       `"Whistling," Miss Quill says, without looking up, in answer to a sound only she heard, "is how you call the flymen in the old days - whistle the wrong cue and a hundredweight of scenery comes down on your head. So we don't whistle backstage. We don't say the Scottish name. And we don't, ever, wish each other good luck." A beat. "Break a leg, by the way."`,
       `Miss Quill turns a page. "I've prompted leading ladies through divorces, drink, and one memorable nervous collapse during the interval of a farce. Whatever's got into Cordelia, it's not temperament. I've known her twenty years. That woman's frightened. Frightened people hide." She lets that sit. "You might be kinder to find her than to replace her. But that's not for me to say. I only say the lines."`
     ],
@@ -660,7 +684,9 @@ const NPCS={
       ?`Mr Bellweather, the Director: a large, theatrical wreck of a man, hollowed out by the evening but - since Mr Pemberton's safe return - no longer actively disintegrating. He watches you with the desperate hope of a man who has handed someone else the wheel and is trying very hard not to grab it back.`
       :`Mr Bellweather, the Director: a large man built for grand gestures, currently folded over his own desk like a deckchair that has given up. He clutches the annotated Book to his chest. Forty years in the theatre have brought him to this provincial gala, and the universe has chosen tonight, of all nights, to take away his leading lady AND - he keeps saying it - his cat.`,
     greet:[
-      `Mr Bellweather lifts his head from the desk and fixes you with a bloodshot eye. "You. The understudy." He says "understudy" the way other men say "iceberg". "Do you know what's happened? Cordelia's GONE. The house is FULL. And Mr Pemberton -" his voice cracks "- Mr Pemberton is NOT IN THE WINGS. Forty years he's watched every opening from his cushion and tonight, the one night, he is GONE. We are cursed. The show is finished. Finished!" He clutches the Book tighter and puts his head back down.`
+      ()=>G.inv.includes('mascot')
+        ?`Mr Bellweather lifts his head from the desk and fixes you with a bloodshot eye - which then falls on the moth-eaten shape in your arms and goes wide. "Is that -" he whispers. "Is that PEMBERTON?" He half-rises, the Book still clutched to his chest, hope and terror warring across his ruined face. "Show me. Show me he's real."`
+        :`Mr Bellweather lifts his head from the desk and fixes you with a bloodshot eye. "You. The understudy." He says "understudy" the way other men say "iceberg". "Do you know what's happened? Cordelia's GONE. The house is FULL. And Mr Pemberton -" his voice cracks "- Mr Pemberton is NOT IN THE WINGS. Forty years he's watched every opening from his cushion and tonight, the one night, he is GONE. We are cursed. The show is finished. Finished!" He clutches the Book tighter and puts his head back down.`
     ],
     talk:()=>{
       if(G.flags.has_book)return null;
@@ -686,7 +712,10 @@ const NPCS={
       `The paper lowers again. "Prop store, is it? The mascot?" Albert sniffs. "Aye, that's locked, and the key's on my board, and on my board it stays, because the LAST time I lent the prop-store key to an actor it came back three weeks later in a different county." He folds his arms. "I'm not an unreasonable man. But I've had no cocoa - that blessed urn's packed in - and a keeper with no hot drink doesn't do favours. Sort me a cocoa and we'll talk about your key. Not before."`,
       `"Hot cocoa," Albert repeats, with the firmness of a man stating his price. "Made proper, with milk, none of your black sludge. You manage that, and the prop-store key's yours for as long as you need it - within reason, and signed for. That urn in the green room's the trouble. Get it going. I've been dreaming of that cocoa since the half." He almost, almost, smiles. "Go on. Surprise me."`
     ],
-    talk:[
+    talk:()=>G.flags.has_prop_key?[
+      `Albert cradles his cocoa in both hands, a changed man. "That," he says, "was worth the wait. You've the key; the prop store's yours. Bring it back when you're done and we'll say no more about it." He nods at the racing page. "Lucky Understudy came in at Kempton, by the way. Forty to one. Omens, eh?"`,
+      `"Get on with you," says Albert, not unkindly, over the rim of his mug. "You've a show to be in and I've a door to keep. That's the arrangement." He turns a page. "But... thank you, lass. For the cocoa. First warm thing this cold old building's given me all night."`
+    ]:[
       `"Cocoa," says Albert, not unkindly. "I'll know it when I taste it. The urn's in the green room and it wants water in it and switching on, and a drop of milk makes all the difference - black cocoa's a punishment, not a treat." He taps the empty flask. "I'll have my flask filled too, while you're about it, if you're feeling generous. But the mug's the price of the key."`,
       `Albert turns to the racing page. "I've kept this door through six artistic directors, two floods and a small fire," he says. "I'll keep it through tonight. You just bring me my cocoa." He underlines a horse. "Lucky Understudy, three-forty at Kempton. Forty to one. There's an omen in that, if you're the superstitious sort. I'm not. But there it is."`,
       `"Still no cocoa?" Albert peers at your empty hands and sighs the sigh of forty years. "Green room. Urn. Water, switch, milk, cocoa, mug. It's not Hamlet." He pauses. "Well. Some nights I'd say it's harder."`
@@ -700,8 +729,12 @@ const NPCS={
     rooms:['wardrobe'],
     examine:`Mrs Tassel, the wardrobe mistress: round, warm, and quick, with a tape-measure round her neck like a vicar's stole and a pincushion strapped to her wrist. She has dressed every actor in this building, knows all their secrets and all their measurements (the second being, she says, the more closely guarded), and treats costumes as living things in her temporary care. She is squinting, at present, at the eye of a needle as though it has personally betrayed her.`,
     greet:[
-      `Mrs Tassel looks up from her hopeless needle with relief. "Oh, a face! Come in, love, come in. You'll be the one going on, God love you, in that gown of Cordelia's, which is a good two sizes off you and will need taking in sharpish - I can do it, three pins and a tuck, I've worked miracles in less time." Her face falls. "IF I can thread a blessed needle, which I can't, because I've gone and lost my little silver threader, and my eyes -" she catches herself "- my eyes are PERFECTLY FINE, it's the needle's at fault. But I'm stuck, love. Properly stuck."`,
-      `"My needle-threader," Mrs Tassel says, miming a small silver implement. "Shaped like a little lady's head, wire loop for the hair - you'll know it. I had it not an hour ago. I'll bet you it's rolled off somewhere and ended up in the prop store - things have a way of migrating to that prop store, like an elephants' graveyard for odds and ends. Find me that, and I can thread up and take Cordelia's gown in for you in a tick." She lowers her voice. "And another thing. That gown's on a locked rail in her room, but the lock's a paltry little thing - a stout pin and a steady hand. Get me my threader and I'll show you the trick of it myself; I'll not have you butchering a costume of mine with a hatpin unsupervised."`
+      ()=>G.flags.threader_returned||G.inv.includes('threader')
+        ?`Mrs Tassel looks up, and her eye goes straight to your hands. "Oh, you clever thing - is that my threader you've tracked down already? Come in, come in. You'll be the one going on, in Cordelia's gown, which'll want taking in sharpish, and now I can actually thread a needle we're in business."`
+        :`Mrs Tassel looks up from her hopeless needle with relief. "Oh, a face! Come in, love, come in. You'll be the one going on, God love you, in that gown of Cordelia's, which is a good two sizes off you and will need taking in sharpish - I can do it, three pins and a tuck, I've worked miracles in less time." Her face falls. "IF I can thread a blessed needle, which I can't, because I've gone and lost my little silver threader, and my eyes -" she catches herself "- my eyes are PERFECTLY FINE, it's the needle's at fault. But I'm stuck, love. Properly stuck."`,
+      ()=>G.flags.threader_returned||G.inv.includes('threader')
+        ?`"Now, that gown of Cordelia's is on a locked rail in her room," Mrs Tassel goes on, "but the lock's a paltry little thing - a stout pin and a steady hand and it's yours. Bring the gown to me and I'll take it in. Off you go."`
+        :`"My needle-threader," Mrs Tassel says, miming a small silver implement. "Shaped like a little lady's head, wire loop for the hair - you'll know it. I had it not an hour ago. I'll bet you it's rolled off somewhere and ended up in the prop store - things have a way of migrating to that prop store, like an elephants' graveyard for odds and ends. Find me that, and I can thread up and take Cordelia's gown in for you in a tick." She lowers her voice. "And another thing. That gown's on a locked rail in her room, but the lock's a paltry little thing - a stout pin and a steady hand. Get me my threader and I'll show you the trick of it myself; I'll not have you butchering a costume of mine with a hatpin unsupervised."`
     ],
     talk:()=>{
       if(G.flags.has_costume)return [
@@ -989,7 +1022,7 @@ function revealCordelia(){
   addScore(6,'discovered Cordelia Vane in hiding');
 }
 function handleItemExamineEffects(iid){
-  if(iid==='electrical_drawer'&&!G.flags.fuse_seen){G.flags.fuse_seen=true;}
+  if(iid==='electrical_drawer'&&!G.flags.fuse_seen){G.flags.fuse_seen=true;ITEMS.spare_fuse.hidden=false;}
   if(iid==='locked_costume'&&!G.flags.costume_seen){G.flags.costume_seen=true;}
   /* examining the note / chaise / table in the diva room reveals Cordelia */
   if(G.location==='diva_room'&&!G.flags.knows_vane_hiding&&
@@ -1333,7 +1366,7 @@ function cmdTalk(target){
 
   /* greet phase */
   if(!npc.spoken){
-    const gi=npc.greetIdx||0;op(npc.greet[gi],'npc');npc.greetIdx=gi+1;
+    const gi=npc.greetIdx||0;const g=npc.greet[gi];op(typeof g==='function'?g():g,'npc');npc.greetIdx=gi+1;
     if(npc.greetIdx>=npc.greet.length)npc.spoken=true;
     /* first-greet plot reveals */
     if(nid==='wardrobe'&&!G.flags.tassel_briefed){G.flags.tassel_briefed=true;}
@@ -1406,7 +1439,8 @@ function takeFromPropStore(which){
   }
   if(which==='fuse'){
     if(G.inv.includes('spare_fuse')||G.flags.fuse_taken){op('You\'ve already taken the spare fuse.','system');endChunk();return;}
-    G.inv.push('spare_fuse');ITEMS.spare_fuse.room=null;G.flags.fuse_taken=true;
+    if(!G.flags.fuse_seen){op('You don\'t see a spare fuse lying about. Things in here have a way of hiding in drawers - try EXAMINE the electrical drawer.','error');endChunk();return;}
+    G.inv.push('spare_fuse');ITEMS.spare_fuse.room=null;ITEMS.spare_fuse.hidden=false;G.flags.fuse_taken=true;
     op('You fish the chunky ceramic fuse out of the "ELECTRICAL - PROBABLY" drawer. Exactly the sort of thing a dead lighting board might be missing.','success');
     addScore(5,'salvaged the spare fuse');upStatus();endChunk();return;
   }
@@ -1465,7 +1499,10 @@ function cmdMove(dest){
     }
     if(!G.flags.prop_store_opened){
       G.flags.prop_store_opened=true;
-      ITEMS.mascot.room='prop_store';ITEMS.spare_fuse.room='prop_store';ITEMS.threader.room='prop_store';
+      /* Mascot and threader sit out on the shelves; the fuse is tucked inside the
+         electrical drawer, so it stays hidden until the drawer is examined. */
+      ITEMS.mascot.room='prop_store';ITEMS.threader.room='prop_store';
+      ITEMS.spare_fuse.room='prop_store';ITEMS.spare_fuse.hidden=!G.flags.fuse_seen;
       addScore(4,'unlocked the prop store');
     }
   }
@@ -1830,7 +1867,7 @@ function doRestart(){
   G.turns=0;G.score=0;G.flags={};G.location='dressing_room';
   G.inv=['ruined_script','greasepaint','rabbits_foot','safety_pin'];
   G.visited=new Set();G.gameOver=false;G.awaitingRestartConfirm=false;
-  Object.values(ITEMS).forEach(function(it){if(it._orig!==undefined)it.room=it._orig;delete it.given;});
+  Object.values(ITEMS).forEach(function(it){if(it._orig!==undefined)it.room=it._orig;delete it.given;delete it.hidden;});
   Object.values(NPCS).forEach(function(n){n.spoken=false;n.greetIdx=0;n.talkCount=0;n.wandered=false;});
   _pendingCmd='';outEl.innerHTML='';srEl.textContent='';
   upStatus();init();
@@ -1854,6 +1891,8 @@ function doLoad(){
     if(NPCS[id]){NPCS[id].spoken=v.spoken||false;NPCS[id].greetIdx=v.greetIdx||0;NPCS[id].talkCount=v.talkCount||0;NPCS[id].wandered=v.wandered||false;}
   });
   if(d.itemRooms)Object.entries(d.itemRooms).forEach(function([id,v]){if(ITEMS[id])ITEMS[id].room=v;});
+  /* the fuse's hidden-in-drawer state derives from whether the drawer's been examined */
+  ITEMS.spare_fuse.hidden=(ITEMS.spare_fuse.room==='prop_store'&&!G.flags.fuse_seen);
   upStatus();return true;
 }
 function cmdLoad(){
