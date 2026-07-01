@@ -1044,7 +1044,7 @@ function cmdExamine(target){
 function cmdTake(target){
   startChunk();
   const nid=findNPC(target);if(nid){op(NPCS[nid].take,'npc');endChunk();return;}
-  const f=target.toLowerCase();
+  const f=target.toLowerCase().replace(/^(?:the|a|an|my|some|that|this)\s+/,'').trim();
   /* fixed-scenery quick refusals handled via item take_resp below; environment catch-alls: */
   const envTake={
     audience:'You cannot pocket eight hundred people, however much you might like to take them somewhere quiet and explain the situation.',
@@ -1083,7 +1083,7 @@ function cmdTake(target){
 }
 
 function cmdDrop(target){
-  startChunk();const f=target.toLowerCase();const fw=f.split(/\s+/).filter(w=>w.length>2);
+  startChunk();const f=target.toLowerCase().replace(/^(?:the|a|an|my|some|that|this)\s+/,'').trim();const fw=f.split(/\s+/).filter(w=>w.length>2);
   const idx=G.inv.findIndex(id=>{const n=ITEMS[id].name.toLowerCase();return n.includes(f)||fw.every(w=>n.includes(w));});
   if(idx<0){op('You\'re not carrying anything like that.','error');endChunk();return;}
   const id=G.inv[idx];
@@ -1142,8 +1142,12 @@ function cmdFillUrn(){
   }
   op('You turn on the tap and fill the mug several times, pouring it carefully into the urn each time, until the urn is good and full. You drop the lid and find the switch.');
   op('It shudders, ticks, and begins - with the slow grandeur of a great ship leaving harbour - to heat.','success');
-  op('Now: cocoa powder (on the shelf), hot water (coming), and milk. Find some milk and you can make the cocoa itself.','system');
   G.flags.urn_filled=true;addScore(5,'resurrected the green-room urn');
+  if(G.inv.includes('milk')){
+    op('You\'ve the cocoa tin on the shelf and Brenda\'s milk in hand - everything the cocoa needs. Try MAKE COCOA.','system');
+  }else{
+    op('Now: cocoa powder (on the shelf), hot water (coming), and milk. Find some milk and you can make the cocoa itself.','system');
+  }
   upStatus();endChunk();
 }
 
@@ -1226,11 +1230,14 @@ function cmdUse(raw){
      (inc(lo,'fill')&&inc(lo,'mug'))||
      (inc(lo,'urn')&&(inc(lo,'fill')||inc(lo,'water')||inc(lo,'switch')||inc(lo,'turn on')||inc(lo,'boil')))||
      (inc(lo,'fill')&&(inc(lo,'water')||inc(lo,'tap')||inc(lo,'sink')))){endChunk();cmdFillUrn();return;}
-  /* cocoa make */
-  if((inc(lo,'cocoa')&&(inc(lo,'make')||inc(lo,'mug')||inc(lo,'milk')||inc(lo,'urn')))||
+  /* cocoa make — accept the many natural ways to say "make the cocoa now":
+     any mention of cocoa, or milk (the last ingredient) once the urn's filled,
+     or making a drink. cmdMakeCocoa handles the not-ready cases with guidance. */
+  if(inc(lo,'cocoa')||
+     (inc(lo,'milk')&&(inc(lo,'urn')||inc(lo,'mug')||inc(lo,'cocoa')||inc(lo,'make')||inc(lo,'add')||inc(lo,'pour')||inc(lo,'put')||G.flags.urn_filled))||
      (inc(lo,'make')&&inc(lo,'drink'))){endChunk();cmdMakeCocoa();return;}
-  /* fuse fit */
-  if(inc(lo,'fuse')||(inc(lo,'fix')&&(inc(lo,'board')||inc(lo,'light')))){endChunk();cmdFitFuse();return;}
+  /* fuse fit — any mention of the fuse, or fixing the board/lights */
+  if(inc(lo,'fuse')||((inc(lo,'fix')||inc(lo,'mend')||inc(lo,'repair'))&&(inc(lo,'board')||inc(lo,'light')||inc(lo,'rig')))){endChunk();cmdFitFuse();return;}
   /* costume pin trick — explicit verb+noun, or (since this is reached via a use/unpick/force verb) a bare lock/rail/padlock reference */
   if((inc(lo,'pin')&&(inc(lo,'lock')||inc(lo,'rail')||inc(lo,'costume')||inc(lo,'gown')||inc(lo,'dress')||inc(lo,'padlock')))||
      (inc(lo,'pick')&&(inc(lo,'lock')||inc(lo,'rail')||inc(lo,'padlock')))||
@@ -1910,8 +1917,14 @@ function parse(raw){
   if((inc(cmd,'open')||inc(cmd,'lift'))&&(inc(cmd,'urn')||(inc(cmd,'lid')&&G.location==='green_room'))){cmdOpenUrn();return;}
   if((inc(cmd,'fill')&&inc(cmd,'mug'))||(inc(cmd,'mug')&&(inc(cmd,'tap')||inc(cmd,'sink')))||(inc(cmd,'fill')&&(inc(cmd,'urn')||inc(cmd,'tap')||inc(cmd,'sink')))||cmd==='fill urn'||cmd==='fill mug'){cmdFillUrn();return;}
   if((inc(cmd,'make')&&inc(cmd,'cocoa'))||cmd==='make cocoa'){cmdMakeCocoa();return;}
-  if((inc(cmd,'fit')&&inc(cmd,'fuse'))||cmd==='fit fuse'||(inc(cmd,'put')&&inc(cmd,'fuse'))||(inc(cmd,'replace')&&inc(cmd,'fuse'))){cmdFitFuse();return;}
-  if(cmd==='get dressed'||cmd==='dress'||(inc(cmd,'put on')&&inc(cmd,'gown'))||(inc(cmd,'wear')&&inc(cmd,'gown'))||(inc(cmd,'wear')&&inc(cmd,'costume'))){cmdGetDressed();return;}
+  /* intuitive cocoa-making in the green room: making the drink, or adding the
+     milk (the last ingredient). Exclude inspection verbs so EXAMINE/READ COCOA
+     still describe the tin rather than making cocoa. */
+  if(G.location==='green_room'&&!/^(?:examine|x|look|inspect|read|describe|study|check|view|peer|smell|sniff|take|get|grab|pick|drop)\b/.test(cmd)&&
+     (inc(cmd,'cocoa')||(inc(cmd,'milk')&&(inc(cmd,'urn')||inc(cmd,'cocoa')||inc(cmd,'add')||inc(cmd,'pour')||inc(cmd,'put')||inc(cmd,'stir')||inc(cmd,'make')||G.flags.urn_filled)))){cmdMakeCocoa();return;}
+  if(inc(cmd,'fuse')&&wrd(cmd,'fit','put','replace','install','insert','use','fix','change','mend','repair','slot')||cmd==='fit fuse'){cmdFitFuse();return;}
+  if(cmd==='get dressed'||cmd==='dress'||cmd==='get changed'||
+     ((inc(cmd,'put on')||inc(cmd,'wear')||inc(cmd,'don')||inc(cmd,'try on'))&&(inc(cmd,'gown')||inc(cmd,'dress')||inc(cmd,'costume')||inc(cmd,'silk')))){cmdGetDressed();return;}
 
   /* prop-store item taking (special, key-gated room already opened) */
   if(G.location==='prop_store'&&wrd(cmd,'take','get','grab','pick','collect','fetch','retrieve','find')){
@@ -1931,12 +1944,27 @@ function parse(raw){
   if(goM){
     var arg=goM[1].trim();
     if(room.exits[arg]){cmdMove(room.exits[arg]);return;}
-    var best=Object.entries(room.exits).find(function([k]){var kw=k.split(/\s+/);var aw=arg.split(/\s+/);return kw.some(function(kp){return aw.some(function(ap){return ap===kp&&ap.length>2;});});});
-    if(best){cmdMove(best[1]);return;}
+    /* Score each destination by how many distinct arg-words match any of its
+       alias-words; pick the highest. Aggregating per-destination (not first
+       alias match) avoids e.g. "director office" being grabbed by the "box
+       office" exit just because both contain the word "office". */
+    var aw=arg.split(/\s+/).filter(function(w){return w.length>2;});
+    var matched={}; /* dest -> Set of arg-words it matched */
+    Object.entries(room.exits).forEach(function([k,dest]){
+      var kw=k.split(/\s+/);
+      aw.forEach(function(ap){
+        if(kw.indexOf(ap)>=0){(matched[dest]=matched[dest]||{})[ap]=1;}
+      });
+    });
+    var best=null,bestScore=0;
+    Object.keys(matched).forEach(function(d){var sc=Object.keys(matched[d]).length;if(sc>bestScore){bestScore=sc;best=d;}});
+    if(best){cmdMove(best);return;}
     startChunk();op('You can\'t get to "'+arg+'" from here. Type EXITS to see your options.','error');endChunk();return;
   }
   var xM=cmd.match(/^(?:examine|x|look at|look in|look inside|inspect|read|describe|study|check|view|peer at|peer into)\s+(.+)$/);
   if(xM){cmdExamine(xM[1].trim());return;}
+  /* "pick (the) lock/rail/padlock" reads as lock-picking, not taking - route it there */
+  if(/^pick\b/.test(cmd)&&(inc(cmd,'lock')||inc(cmd,'padlock')||inc(cmd,'rail'))){cmdUse(cmd);return;}
   var tkM=cmd.match(/^(?:take|get|pick up|pick|grab|collect|acquire|retrieve|lift|fetch|pocket|gather)\s+(.+)$/);
   if(tkM){cmdTake(tkM[1].trim());return;}
   var drM=cmd.match(/^(?:drop|put down|set down|discard|leave|abandon)\s+(.+)$/);
